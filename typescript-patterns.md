@@ -1,18 +1,20 @@
 # TypeScript — Idiomatic Patterns
 
-**What it is:** The type-level patterns that make TS code safe and self-documenting — discriminated unions, type guards, `satisfies`, generics, and inference tricks.
+**What it is:** The type-level patterns that make TS code safe and self-documenting — discriminated unions, `satisfies`, inference from values, mapped/conditional types, and template-literal types.
 
-**Why people use them:** They push errors to compile time and let the compiler *narrow* types for you, so you write fewer runtime checks and get exhaustive coverage of cases.
+**Why people use them:** They push errors to compile time and let the compiler *derive* and *narrow* types for you — so a runtime value (a schema, a builder) and its static type stay in sync from one source.
 
-**Typically used for:** Modelling state machines, API responses, agent/tool definitions, and anywhere "this value is one of N shapes" needs to be enforced.
+**Typically used for:** Modelling state machines, API responses, ORM/DML schemas, and SDK surfaces where the types must follow the data exactly.
 
-> For compiler/`tsconfig` setup see [typescript.md](typescript.md). This sheet is patterns.
+> Compiler/`tsconfig` setup is in [typescript.md](typescript.md). This sheet is patterns.
 
 ---
 
-## Discriminated unions (model "one of N shapes")
+## Everyday patterns
 
-A shared literal `kind` field lets the compiler narrow which variant you have. The backbone of typed state machines and agent events.
+### Discriminated unions + exhaustiveness
+
+A shared literal `kind` lets the compiler narrow the variant. Backbone of typed state machines and event handling.
 
 ```ts
 type AgentEvent =
@@ -20,209 +22,234 @@ type AgentEvent =
   | { kind: "message";   text: string }
   | { kind: "error";     error: Error };
 
-function handle(e: AgentEvent) {
-  switch (e.kind) {
-    case "tool_call": return run(e.tool, e.args);   // e.args is in scope, e.text is not
-    case "message":   return send(e.text);
-    case "error":     return log(e.error);
-  }
-}
-```
-
-### Exhaustiveness check
-
-Force a compile error if a new variant is added but unhandled:
-
-```ts
 function assertNever(x: never): never {
   throw new Error(`Unhandled: ${JSON.stringify(x)}`);
 }
 
-switch (e.kind) {
-  case "tool_call": /* ... */ break;
-  case "message":   /* ... */ break;
-  default: return assertNever(e);   // compile error if "error" case is missing
+function handle(e: AgentEvent) {
+  switch (e.kind) {
+    case "tool_call": return run(e.tool, e.args);   // e.args in scope here
+    case "message":   return send(e.text);
+    case "error":     return log(e.error);
+    default:          return assertNever(e);          // compile error if a case is missed
+  }
 }
 ```
 
----
-
-## Type guards & narrowing
+### Type guards & narrowing
 
 ```ts
-// User-defined guard
-function isToolCall(e: AgentEvent): e is Extract<AgentEvent, { kind: "tool_call" }> {
-  return e.kind === "tool_call";
-}
-
-// `in` narrowing
-if ("error" in e) { /* e has error */ }
-
-// Narrow unknown (e.g. JSON from an API)
-function isUser(x: unknown): x is User {
+function isUser(x: unknown): x is User {              // narrow unknown at boundaries
   return typeof x === "object" && x !== null && "id" in x;
 }
+if ("error" in e) { /* e has error */ }              // `in` narrowing
 ```
 
----
+### `satisfies` — validate without widening
 
-## `satisfies` — validate without widening
-
-`satisfies` checks a value against a type **while keeping its narrow literal type**. Use it over `: Type` annotations when you want the precise inferred type back.
+Checks a value against a type while **keeping its narrow literal type** — unlike `: Type`, which widens.
 
 ```ts
-const config = {
-  model: "gpt-4o",
-  temperature: 0,
-} satisfies LLMConfig;
-
-config.model;   // type is "gpt-4o" (literal), not string — still validated against LLMConfig
+const config = { model: "gpt-4o", temperature: 0 } satisfies LLMConfig;
+config.model;   // type is "gpt-4o" (literal), still validated against LLMConfig
 ```
 
-Contrast:
-
-```ts
-const a: LLMConfig = { model: "gpt-4o" };  // a.model widens to string
-const b = { model: "gpt-4o" } satisfies LLMConfig;  // b.model stays "gpt-4o"
-```
-
----
-
-## `as const` — freeze literals
+### `as const`
 
 ```ts
 const ROLES = ["admin", "user", "guest"] as const;
-type Role = (typeof ROLES)[number];        // "admin" | "user" | "guest"
-
-const tool = { name: "search", schema: {...} } as const;  // deeply readonly, literal types
+type Role = (typeof ROLES)[number];                  // "admin" | "user" | "guest"
 ```
 
----
-
-## Deriving types from values (don't repeat yourself)
+### Utility types
 
 ```ts
-const defaults = { retries: 3, timeout: 5000 };
-type Settings = typeof defaults;            // { retries: number; timeout: number }
-
-type Keys = keyof Settings;                 // "retries" | "timeout"
-type RetryType = Settings["retries"];       // number
+type PublicUser = Omit<User, "passwordHash">;
+type Creds      = Pick<User, "email" | "passwordHash">;
+type ById       = Record<string, User>;
+type Resolved   = Awaited<ReturnType<typeof fetchUser>>;
 ```
 
-With Zod (single source of truth for runtime + compile-time — see [zod.md](zod.md)):
+### Generics that infer
 
 ```ts
-import { z } from "zod";
-const ToolInput = z.object({ city: z.string() });
-type ToolInput = z.infer<typeof ToolInput>;  // { city: string }
-```
-
----
-
-## Utility types (transform existing types)
-
-```ts
-type PartialUser  = Partial<User>;            // all optional
-type RequiredUser = Required<User>;
-type PublicUser   = Omit<User, "passwordHash">;
-type Creds        = Pick<User, "email" | "passwordHash">;
-type ById         = Record<string, User>;
-type Result       = ReturnType<typeof fetchUser>;
-type Arg          = Parameters<typeof fetchUser>[0];
-type Resolved     = Awaited<ReturnType<typeof fetchUser>>;  // unwrap Promise
-```
-
----
-
-## Generics that infer
-
-Let the caller's types flow through — don't force them to annotate.
-
-```ts
-function first<T>(arr: T[]): T | undefined {
-  return arr[0];
-}
-first([1, 2, 3]);          // T inferred as number
-
-// Constrain a generic
 function pluck<T, K extends keyof T>(obj: T, key: K): T[K] {
   return obj[key];
 }
-pluck({ id: 1, name: "x" }, "name");   // return type: string
+pluck({ id: 1, name: "x" }, "name");   // return type: string, inferred
 ```
 
----
-
-## Result type (errors as values)
-
-Avoid throw/catch for expected failures — model them in the type so callers must handle both.
+### Result type (errors as values)
 
 ```ts
-type Result<T, E = Error> =
-  | { ok: true;  value: T }
-  | { ok: false; error: E };
-
-async function callTool(name: string): Promise<Result<string>> {
-  try { return { ok: true, value: await invoke(name) }; }
-  catch (e) { return { ok: false, error: e as Error }; }
-}
+type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
 
 const r = await callTool("search");
-if (r.ok) use(r.value); else recover(r.error);   // both paths enforced
+if (r.ok) use(r.value); else recover(r.error);       // both paths enforced
 ```
 
----
-
-## Branded types (nominal typing)
-
-Stop mixing up two `string`s (a `UserId` vs an `OrgId`) that are structurally identical.
+### Branded types (nominal)
 
 ```ts
 type UserId = string & { readonly __brand: "UserId" };
 const UserId = (s: string) => s as UserId;
+getUser(UserId("u_1"));   // plain string rejected
+```
 
-function getUser(id: UserId) { /* ... */ }
-getUser(UserId("u_1"));   // ok
-getUser("u_1");           // compile error — plain string rejected
+---
+
+## Advanced
+
+These show up in ORM/SDK/validation library internals, where types must follow runtime data exactly.
+
+### `Prettify<T>` — flatten intersections for readable types
+
+Intersections (`A & B & C`) show as a tangle on hover. This collapses them to one flat object — purely cosmetic, but huge for DX on derived types.
+
+```ts
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
+```
+
+### Infer a static type from a runtime schema
+
+The headline pattern: define a schema **once** as a value, then derive its type with `infer` — runtime shape and compile-time type can never drift. Zod is the canonical example:
+
+```ts
+import { z } from "zod";
+
+const Currency = z.object({
+  code: z.string(),
+  symbol: z.string(),
+  decimals: z.number().nullable(),
+});
+
+type Currency = z.infer<typeof Currency>;
+// { code: string; symbol: string; decimals: number | null }
+```
+
+The same technique on your own builder — capture the schema in a generic, unwrap it with a conditional `infer`:
+
+```ts
+interface Schema<T> { __type: T }
+type InferType<S> = S extends Schema<infer T> ? T : never;
+```
+
+> See [zod.md](zod.md) — one source of truth for runtime validation *and* static types.
+
+### Strip auto-managed fields for input DTOs
+
+Derive a "create input" type from an entity by `Omit`-ting the fields the system manages.
+
+```ts
+type Managed = "created_at" | "updated_at" | "deleted_at";
+type CreateInput<T> = Omit<T, Managed>;
+```
+
+### Mapped type that transforms a config object
+
+Walk every key of an input type and branch on what each value *is* (`infer` + conditional). Turns a config map into a derived config map.
+
+```ts
+type ToConfig<T> = {
+  [K in keyof T]: T[K] extends Schema<infer U>
+    ? U                                    // a schema → its inferred type
+    : T[K] extends Constructor<any>
+    ? InstanceType<T[K]>                   // a class → its instance type
+    : T[K] extends { model: infer M }      // an object → pull out its `model`
+    ? M
+    : never;
+};
+```
+
+### Factory typing — `Constructor` / `InstanceType`
+
+Type functions that build classes (mixins, service factories).
+
+```ts
+type Constructor<T> = new (...args: any[]) => T;
+
+function withTimestamps<T extends Constructor<{}>>(Base: T) {
+  return class extends Base {
+    createdAt = new Date();
+  };
+}
+type Built = InstanceType<ReturnType<typeof withTimestamps>>;
+```
+
+### Template-literal types — parse strings at the type level
+
+Conditional types recurse over string literals with `infer`. Common in SDKs that derive method names (`listProducts`, `retrieveUser`) from entity names entirely in the type system.
+
+```ts
+type Pluralize<S extends string> =
+  S extends `${infer R}y`  ? `${R}ies`
+  : S extends `${string}s` ? S
+  : `${S}s`;
+
+type T1 = Pluralize<"category">;   // "categories"
+type T2 = Pluralize<"address">;    // "addresses"
+```
+
+### Depth-limited recursion (the tuple-counter trick)
+
+Recursive types over nested objects loop forever without a bound. Index a tuple to "decrement" a depth counter and stop — the standard way to cap how deep a recursive type (e.g. a field-path expander) descends.
+
+```ts
+type Decrement = [never, 0, 1, 2, 3, 4];           // Decrement[3] = 2, Decrement[1] = 0
+
+type Paths<T, Depth extends number = 3> = Depth extends never
+  ? never                                          // hit the floor → stop
+  : T extends object
+  ? { [K in keyof T]: /* recurse with */ Paths<T[K], Decrement[Depth]> }[keyof T]
+  : never;
+```
+
+### Object → union of its leaves via `[keyof T]`
+
+Indexing a mapped type by `keyof T` collapses it into a **union** of the values — the trick behind extracting field paths.
+
+```ts
+type ValuesOf<T> = { [K in keyof T]: T[K] }[keyof T];
+type U = ValuesOf<{ a: "x"; b: "y" }>;   // "x" | "y"
 ```
 
 ---
 
 ## Practical recipes
 
-**Exhaustive event/state handler (agent loop):**
+**Exhaustive handler (agent/state loop):**
 ```ts
-switch (state.kind) { /* cases */ default: return assertNever(state); }
+switch (s.kind) { /* cases */ default: return assertNever(s); }
 ```
 
-**Type a function's config from a Zod schema:**
+**Derive a type from a schema instead of hand-writing it:**
 ```ts
-type Config = z.infer<typeof ConfigSchema>;   // runtime validation + static type, one source
+type T = z.infer<typeof Schema>;
 ```
 
-**Make every field deeply readonly:**
+**Make a create-input type from an entity:**
 ```ts
-const frozen = data as const;
+type CreateInput = Omit<z.infer<typeof Schema>, "created_at" | "updated_at" | "deleted_at">;
 ```
 
-**Pick a subset type for a public API response:**
+**Flatten an ugly intersection on hover:**
 ```ts
-type PublicUser = Omit<User, "passwordHash" | "internalNotes">;
+type Clean = Prettify<A & B & C>;
 ```
 
-**Narrow an `unknown` API payload before use:**
+**Validate config but keep literal types:**
 ```ts
-if (!isUser(json)) throw new Error("bad shape");
-json.id;   // now typed
+const cfg = { model: "gpt-4o" } satisfies LLMConfig;
 ```
 
 ---
 
 ## Tips
 
-- Reach for **discriminated unions + `assertNever`** for anything with a fixed set of cases — the compiler then enforces you handle all of them.
-- Prefer `satisfies` over `: Type` when you want validation *and* the narrow inferred type.
-- Derive types from values/schemas (`typeof`, `z.infer`) instead of hand-writing parallel definitions that drift.
-- Avoid `any`; use `unknown` + a type guard at boundaries (API responses, JSON, tool outputs).
-- Result types make expected failures explicit; reserve `throw` for truly exceptional cases.
-- Let generics infer — if callers must pass type arguments, the signature is usually wrong.
+- Derive types from values/schemas (`z.infer`, `typeof`) — never hand-maintain a type that parallels a runtime shape; it will drift.
+- Wrap derived/intersection types in `Prettify` so consumers see a clean object, not `A & B & {...}`.
+- `satisfies` when you want validation *and* the narrow inferred type; `: Type` only when you want to widen.
+- Discriminated unions + `assertNever` for any fixed set of cases — the compiler then forces you to handle all of them.
+- Bound recursive types with a tuple-counter; unbounded recursion errors with "type instantiation is excessively deep".
+- `unknown` + a type guard at every boundary (API, JSON, tool output); avoid `any`.
+- Reach for template-literal types sparingly — powerful for SDK ergonomics, but slow to compile and hard to debug.
