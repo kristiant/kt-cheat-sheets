@@ -1,145 +1,148 @@
 # Docling
 
-**What it is:** A Python document conversion toolkit for parsing PDFs, Office files, HTML, images, audio transcripts, and more into structured documents.
+**What it is:** A document conversion toolkit that parses PDFs, Office files, HTML, images, and more into structured documents (Markdown, JSON, HTML).
 
-**Why people use it:** It extracts text, layout, tables, figures, reading order, and metadata into formats that are useful for RAG and document AI.
+**Why people use it:** Extracts text, tables, layout, and reading order into formats useful for RAG — without sending files to a SaaS API.
 
-**Typically used for:** PDF-to-Markdown, document ingestion pipelines, RAG preprocessing, table extraction, OCR workflows, and converting files to structured JSON.
-
-> Source: https://docling-project.github.io/docling/ and https://www.docling.ai/
+**Typically used for:** PDF-to-Markdown, RAG preprocessing, table extraction, OCR workflows, and bulk document ingestion pipelines.
 
 ---
 
-## Setup
+## Two TS packages to know
+
+| Package | What it does |
+|---|---|
+| [`@docling/docling-core`](https://github.com/docling-project/docling-ts) | Official. TypeScript types + utilities for consuming Docling's JSON output. |
+| [`docling-sdk`](https://github.com/btwld/docling-sdk) | Third-party. Runs Docling conversions from TS via Docling Serve API, the CLI wrapper, or in-browser WebGPU/WASM. |
+
+---
+
+## @docling/docling-core — consuming Docling output in TS
+
+Install:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+npm i @docling/docling-core
+```
+
+Parse and iterate a Docling JSON file:
+
+```ts
+import { iterateDocumentItems, isDocling } from "@docling/docling-core";
+import conversion from "./input.docling.json";
+
+for (const [item, level] of iterateDocumentItems(conversion)) {
+  if (isDocling.TextItem(item)) {
+    console.log(item.text);
+  }
+}
+```
+
+Useful for post-processing: chunking, filtering by item type, extracting tables, mapping to embeddings.
+
+---
+
+## docling-sdk — running conversions from TS
+
+Install:
+
+```bash
+npm i docling-sdk
+```
+
+Three client modes — pick one based on your setup:
+
+### API client (Docling Serve running somewhere)
+
+```ts
+import { DoclingClient } from "docling-sdk";
+
+const client = new DoclingClient({ baseUrl: "http://localhost:5001" });
+const result = await client.convert({ source: "./report.pdf" });
+
+console.log(result.document.export_to_markdown());
+```
+
+### CLI client (Python Docling installed locally)
+
+```ts
+import { DoclingCLIClient } from "docling-sdk";
+
+const client = new DoclingCLIClient();
+const result = await client.convert({ source: "./report.pdf" });
+```
+
+### Web client (browser — no server needed, runs via WebGPU/WASM)
+
+```ts
+import { DoclingWebClient } from "docling-sdk";
+
+const client = new DoclingWebClient();
+const result = await client.convert({ source: file }); // File object
+```
+
+---
+
+## Spinning up Docling Serve (for the API client)
+
+Docling Serve is a REST API wrapper around the Python library:
+
+```bash
+docker run -p 5001:5001 ghcr.io/docling-project/docling-serve:latest
+```
+
+Then point `DoclingClient` at `http://localhost:5001`. You get full Docling conversion over HTTP, no Python in your TS project.
+
+---
+
+## Advanced
+
+### Chunking for RAG (TS)
+
+```ts
+import { iterateDocumentItems, isDocling } from "@docling/docling-core";
+
+const chunks: string[] = [];
+let buffer = "";
+
+for (const [item] of iterateDocumentItems(conversion)) {
+  if (isDocling.TextItem(item)) {
+    buffer += item.text + "\n";
+    if (buffer.length > 1000) {
+      chunks.push(buffer.trim());
+      buffer = "";
+    }
+  }
+}
+if (buffer) chunks.push(buffer.trim());
+```
+
+### Pair with LangChain (Python side)
+
+```bash
+pip install langchain-docling
+```
+
+```python
+from langchain_docling import DoclingLoader
+
+loader = DoclingLoader(file_path="report.pdf")
+docs = loader.load()
+```
+
+### Python CLI — quick one-offs
+
+When you just need a file converted and don't need TS:
+
+```bash
 pip install docling
-```
-
-Docling requires Python 3.10+ in current releases.
-
-## Most common commands
-
-```bash
-docling input.pdf
-docling input.pdf --to md
-docling input.pdf --to json
-docling https://arxiv.org/pdf/2206.01062
-docling ./docs
-docling --help
-```
-
-> The official start page shows `pip install docling`, `docling <url>`, and `DocumentConverter().convert(...)`.
-
----
-
-## Convert in Python
-
-```python
-from docling.document_converter import DocumentConverter
-
-source = "input.pdf"
-converter = DocumentConverter()
-result = converter.convert(source)
-
-print(result.document.export_to_markdown())
-```
-
-Convert a URL:
-
-```python
-from docling.document_converter import DocumentConverter
-
-source = "https://arxiv.org/pdf/2408.09869"
-doc = DocumentConverter().convert(source).document
-
-print(doc.export_to_markdown())
-```
-
-Export JSON:
-
-```python
-import json
-from docling.document_converter import DocumentConverter
-
-doc = DocumentConverter().convert("input.pdf").document
-
-with open("input.docling.json", "w") as f:
-    json.dump(doc.export_to_dict(), f, indent=2)
-```
-
-Export HTML:
-
-```python
-doc = DocumentConverter().convert("input.pdf").document
-
-with open("input.html", "w") as f:
-    f.write(doc.export_to_html())
-```
-
----
-
-## CLI examples
-
-Convert a PDF to Markdown:
-
-```bash
 docling report.pdf --to md
-```
-
-Convert to JSON:
-
-```bash
 docling report.pdf --to json
-```
-
-Convert a URL:
-
-```bash
 docling https://arxiv.org/pdf/2206.01062 --to md
+docling ./input-docs --to md --output ./converted
 ```
 
-Convert a directory:
-
-```bash
-docling ./input-docs --to md
-```
-
-Write output to a directory:
-
-```bash
-mkdir -p converted
-docling ./input-docs --to md --output converted
-```
-
----
-
-## Supported input types
-
-Docling's docs list many formats, including:
-
-```text
-PDF, DOCX, PPTX, XLSX, HTML, EPUB,
-PNG, JPEG, TIFF, WAV, MP3, WebVTT,
-EML, MSG, LaTeX, plain text
-```
-
-## Useful output types
-
-```text
-Markdown
-HTML
-JSON
-DocTags
-DocLang
-WebVTT
-```
-
----
-
-## Basic ingestion pipeline
+### Python API — batch conversion pipeline
 
 ```python
 from pathlib import Path
@@ -154,140 +157,65 @@ for path in Path("docs").glob("*.pdf"):
     out.write_text(doc.export_to_markdown())
 ```
 
-## Chunk for RAG
-
-Simple Markdown chunking:
-
-```python
-from docling.document_converter import DocumentConverter
-
-doc = DocumentConverter().convert("handbook.pdf").document
-markdown = doc.export_to_markdown()
-
-chunks = [
-    markdown[i : i + 1200]
-    for i in range(0, len(markdown), 1000)
-]
-```
-
-Keep source metadata:
-
-```python
-records = [
-    {
-        "id": f"handbook-{i}",
-        "text": chunk,
-        "metadata": {"source": "handbook.pdf", "chunk": i},
-    }
-    for i, chunk in enumerate(chunks)
-]
-```
-
-## Pair with LangChain
-
-```bash
-pip install langchain-docling
-```
-
-```python
-from langchain_docling import DoclingLoader
-
-loader = DoclingLoader(file_path="report.pdf")
-docs = loader.load()
-```
-
-> LangChain documents a Docling loader for parsing files into documents suitable for RAG.
-
 ---
 
-## OCR notes
+## Supported input types
 
-Use OCR only when needed:
-
-```bash
-docling scanned.pdf --to md
+```
+PDF, DOCX, PPTX, XLSX, HTML, EPUB, PNG, JPEG, TIFF, EML, LaTeX
 ```
 
-For born-digital PDFs, OCR can be slower and less accurate than native text extraction.
+## Output formats
 
-## Batch conversion
-
-```python
-from pathlib import Path
-from docling.document_converter import DocumentConverter
-
-converter = DocumentConverter()
-
-for source in Path("inbox").iterdir():
-    if source.suffix.lower() not in {".pdf", ".docx", ".pptx", ".html"}:
-        continue
-
-    try:
-        doc = converter.convert(source).document
-        Path("out", source.stem + ".md").write_text(doc.export_to_markdown())
-    except Exception as exc:
-        print(f"FAILED {source}: {exc}")
 ```
-
-## Tables
-
-Markdown export usually preserves tables well enough for RAG:
-
-```python
-doc = DocumentConverter().convert("statement.pdf").document
-markdown = doc.export_to_markdown()
-```
-
-For high-value tables, inspect JSON:
-
-```python
-data = doc.export_to_dict()
+Markdown, JSON, HTML, DocTags
 ```
 
 ---
 
 ## Practical recipes
 
-**Convert every PDF in a directory to Markdown:**
+**Run Docling Serve locally via Docker and convert via HTTP:**
+```bash
+docker run -p 5001:5001 ghcr.io/docling-project/docling-serve:latest
+```
+```ts
+const result = await new DoclingClient({ baseUrl: "http://localhost:5001" })
+  .convert({ source: "./report.pdf" });
+```
+
+**Convert a PDF to Markdown in one line (Python CLI):**
+```bash
+docling report.pdf --to md
+```
+
+**Convert all PDFs in a folder (bash + Python CLI):**
 ```bash
 for f in *.pdf; do docling "$f" --to md --output converted; done
 ```
 
-**Convert a remote PDF and inspect the first lines:**
-```bash
-docling https://arxiv.org/pdf/2206.01062 --to md | head -40
+**Load a Docling JSON and extract only text items (TS):**
+```ts
+import { iterateDocumentItems, isDocling } from "@docling/docling-core";
+
+const text = [...iterateDocumentItems(doc)]
+  .filter(([item]) => isDocling.TextItem(item))
+  .map(([item]) => (item as any).text)
+  .join("\n");
 ```
 
-**Convert once, then write Markdown yourself:**
-```python
-doc = DocumentConverter().convert("input.pdf").document
-Path("input.md").write_text(doc.export_to_markdown())
-```
-
-**Store lossless-ish structured output for later processing:**
+**Cache the JSON output, parse cheaply later:**
 ```python
 Path("input.docling.json").write_text(json.dumps(doc.export_to_dict()))
-```
-
-**Skip unsupported files in a folder:**
-```python
-allowed = {".pdf", ".docx", ".pptx", ".xlsx", ".html", ".png", ".jpg", ".jpeg"}
-files = [p for p in Path("docs").iterdir() if p.suffix.lower() in allowed]
-```
-
-**Use Docling before embedding:**
-```python
-markdown = DocumentConverter().convert("manual.pdf").document.export_to_markdown()
-chunks = markdown.split("\n## ")
 ```
 
 ---
 
 ## Tips
 
-- Prefer Markdown for RAG text; keep JSON when layout, tables, or provenance matter.
-- Convert documents once and cache outputs. PDF parsing is expensive.
-- OCR scanned documents; avoid OCR for normal PDFs unless extraction is poor.
-- Store source filename, page/chunk IDs, and conversion timestamp with embeddings.
-- Inspect a few converted files manually before bulk-ingesting a corpus.
-- Keep sensitive documents local; Docling can run locally without sending files to a SaaS API.
+- Use Docling Serve + `DoclingClient` to keep conversion in Python while calling it from TS — best of both.
+- `@docling/docling-core` is for *consuming* already-converted JSON output, not running conversions.
+- `docling-ts` (the official project) is an unstable draft — expect API changes.
+- Convert once, cache JSON. PDF parsing is expensive.
+- Prefer Markdown for RAG text; keep JSON when table structure or provenance matters.
+- `docling-sdk` runs in Node, Bun, Deno, browsers, and Cloudflare Workers.
