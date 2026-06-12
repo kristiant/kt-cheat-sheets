@@ -28,7 +28,7 @@ npx tsc --watch          # recompile on change
     "moduleResolution": "NodeNext",
     "outDir": "./dist",          // where compiled JS goes
     "rootDir": "./src",          // source root
-    "strict": true,              // turn on ALL strict checks (do this)
+    "strict": true,              // enable all strict checks
     "esModuleInterop": true,     // clean default imports of CJS modules
     "skipLibCheck": true,        // don't type-check .d.ts files (faster)
     "declaration": true,         // emit .d.ts files (for libraries)
@@ -96,7 +96,7 @@ It's a bundle. The high-value ones:
   "strictNullChecks": true,        // null/undefined must be handled explicitly
   "noImplicitAny": true,           // no silent `any`
   "strictFunctionTypes": true,
-  "noUncheckedIndexedAccess": true // arr[i] is T | undefined — opt-in, very useful
+  "noUncheckedIndexedAccess": true // arr[i] is T | undefined (opt-in)
 }
 ```
 
