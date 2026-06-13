@@ -271,6 +271,82 @@ Traces every node, tool call, and token — essential for debugging multi-step r
 
 ---
 
+## Reliability
+
+Wrapping model/tool calls so a non-deterministic, sometimes-failing dependency doesn't sink the run.
+
+**Retries with backoff** — re-attempt transient failures with exponential, jittered delays. Naïve immediate retries make a `429` storm worse.
+
+```ts
+const robust = model.withRetry({ stopAfterAttempt: 4 });   // built-in exponential backoff
+```
+
+**Model fallback chain** — on error/timeout, fall through to an alternative model/provider; survive an outage or rate-limit.
+
+```ts
+const llm = primary.withFallbacks({ fallbacks: [secondary, cheapLocal] });
+```
+
+**Timeout** — bound how long you wait; a hung call shouldn't hang the request.
+
+```ts
+await model.invoke(prompt, { signal: AbortSignal.timeout(10_000) });
+```
+
+- **Circuit breaker** — after repeated failures, stop calling a dependency for a cooldown (fail fast). No LangChain primitive — wrap it (`opossum`).
+- **Idempotency** — make handlers safe to re-run via a dedup key; at-least-once queues and retries *will* double-invoke. See [aws-sqs.md](aws-sqs.md), [aws-lambda.md](aws-lambda.md).
+- **Dead-letter queue** — park repeatedly-failing inputs instead of retrying forever, so one poison message doesn't block the pipeline.
+- **Graceful degradation** — return a reduced-but-useful result on failure (cached answer, smaller model, "can't do that now") rather than an error.
+
+### Concurrency control
+
+- **Rate limiting / throttling** — keep request rate under provider quotas (RPM/TPM); the #1 cause of `429`s. Needs client-side limiting *and* backoff.
+- **Concurrency limit** — cap simultaneous calls. In LangChain it's `maxConcurrency` on `.batch()`; for raw calls, a semaphore (`p-limit`).
+- **Backpressure** — slow producers when consumers fall behind (queue depth as signal), so a burst doesn't overwhelm a downstream model/DB.
+- **Hedging** — fire a duplicate after a delay, take the first to return; cuts p99 latency at the cost of extra spend.
+
+```ts
+const hedge = (fn, ms) => Promise.race([fn(), delay(ms).then(fn)]);
+```
+
+---
+
+## Cost & performance
+
+**Prompt caching** — provider caches the KV for a stable prompt prefix, skipping re-processing on repeat calls. Put stable content (system prompt, tool defs, docs) first, variable content (the user turn) last.
+
+```text
+[ system ][ tool defs ][ retrieved docs ]   ← stable, cacheable prefix
+[ user turn ]                                ← varies, goes last
+```
+
+- **Semantic caching** — cache keyed by embedding similarity, not exact string; "what's your refund policy?" and "how do refunds work?" hit the same entry.
+- **Batching** — group inputs into one `.batch()` call for throughput when latency isn't critical (offline/async).
+- **Token budgeting** — track and cap tokens across prompt + retrieved context + history; budget so docs don't crowd out the question.
+- **Context compaction** — summarise or trim old conversation turns into a running summary instead of dropping them when the window fills.
+
+---
+
+## Quality & control
+
+**Structured output** — force responses into a schema and get a typed object back; turns "usually valid JSON" into a guarantee. LangChain + Zod binds and parses in one step:
+
+```ts
+import { z } from "zod";
+const Out = z.object({ category: z.enum(["refund", "billing", "other"]) });
+
+const classifier = model.withStructuredOutput(Out);
+const { category } = await classifier.invoke(input);   // typed + schema-valid — see zod.md
+```
+
+- **Guardrails** — validate input/output, check schemas, filter content around the model; make the *system* dependable despite a non-deterministic core.
+- **Grounding / citations** — answer only from supplied context and cite sources; the main lever against hallucination and it makes answers verifiable. See [rag.md](rag.md).
+- **LLM-as-judge** — score one model's output with another against criteria; scalable eval and runtime quality gates where exact-match can't work.
+- **Eval harness** — a dataset + metrics in CI to catch regressions; prompts and models change silently otherwise. See [rag.md](rag.md) (Ragas).
+- **Hallucination detection** — flag unsupported claims (low logprobs, faithfulness check, self-consistency) before they reach users.
+
+---
+
 ## Practical recipes
 
 **Tool agent with memory (most common starting point):**
@@ -318,6 +394,9 @@ for await (const [msg] of await app.stream(input, { streamMode: "messages" })) {
 | Can't resume after human input | interrupt without persistence | interrupts require a checkpointer |
 | Multi-agent ping-pongs / never finishes | unclear handoff rules | tighten supervisor prompt; cap steps |
 | Tool call fails the whole run | unhandled node error | `retryPolicy` for flaky calls; route errors to a recovery node |
+| `429` rate-limit errors under load | unbounded fan-out / no throttle | `maxConcurrency` on `.batch()` + client-side rate limit + backoff |
+| Duplicate side effects (double charge) | retries / at-least-once delivery | idempotency key on the handler |
+| Invalid JSON from the model | trusting raw output | `withStructuredOutput(ZodSchema)`; validate at the boundary |
 
 ## Tips
 
@@ -326,4 +405,7 @@ for await (const [msg] of await app.stream(input, { streamMode: "messages" })) {
 - Checkpointer + unique `thread_id` is what gives you memory, resume, and human-in-the-loop. It's the harness, not an add-on.
 - Cap loops everywhere — `recursionLimit`, iteration counters, supervisor step limits.
 - Prefer `createReactAgent` over hand-rolling the tool loop unless you need custom control flow.
+- Bound everything parallel — `maxConcurrency` + rate limiting prevents the `429` storms that sink LLM apps.
+- Retries need backoff + jitter; `.withRetry()` and `.withFallbacks()` handle the common cases.
+- Validate model output with a Zod schema at every boundary; never trust shape.
 - Trace with LangSmith before you debug by `console.log` — multi-step state is hard to reason about blind.
