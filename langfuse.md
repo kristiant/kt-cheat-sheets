@@ -10,6 +10,17 @@
 
 ---
 
+## Mental model
+
+A **trace** is one end-to-end run (an API request, an agent invocation). It contains nested **observations**:
+
+- **spans** — units of work (a retrieval step, a tool call)
+- **generations** — LLM calls (model, tokens, cost, latency)
+
+…forming a tree you inspect step by step. **Scores** attach to a trace or observation for eval/quality. Tracing is OpenTelemetry-based, so nested calls become nested spans automatically.
+
+---
+
 ## Setup
 
 ```bash
