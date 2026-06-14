@@ -10,6 +10,21 @@
 
 ---
 
+## Mental model
+
+A handler is `(c) => Response`, where **`c` (Context)** carries the request *and* the response helpers. Hono speaks only **Web-standard `Request`/`Response`** — which is why the same code runs on Node, Bun, Deno, and Workers.
+
+```ts
+app.get("/users/:id", (c) => {
+  const id = c.req.param("id");     // request in  ─┐
+  return c.json({ id });            // response out ─┘  all via `c`
+});
+```
+
+Middleware wraps handlers via `await next()` — an onion where each layer runs code before and after the next.
+
+---
+
 ## Setup
 
 ```bash
