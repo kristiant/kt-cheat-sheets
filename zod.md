@@ -10,6 +10,22 @@
 
 ---
 
+## Mental model
+
+The **schema is the single source of truth** — define the shape once, get runtime validation *and* the static type from it, so they can never drift.
+
+```ts
+const User = z.object({ id: z.string(), age: z.number() });
+type User = z.infer<typeof User>;     // { id: string; age: number } — derived, not duplicated
+
+User.parse(data);       // → typed value, THROWS on invalid
+User.safeParse(data);   // → { success, data | error } — no throw
+```
+
+"Parse, don't validate": at every boundary (API body, env, webhook, LLM output) turn `unknown` into a typed value and fail loudly if it doesn't fit.
+
+---
+
 ## Setup
 
 ```bash
