@@ -4,9 +4,10 @@
 
 **Why people use it:** It gives standard building blocks for wiring LLMs to real data and actions without rewriting the same glue code.
 
-**Typically used for:** Agents, tool calling, RAG pipelines, chatbots, structured extraction, model-provider switching, and tracing/evaluation workflows.
+**Typically used for:** RAG pipelines, structured extraction, chatbots, tool calling, model-provider switching, and as the building blocks under a LangGraph agent.
 
-> This sheet focuses on LangChain JS/TS. Source: https://docs.langchain.com/oss/javascript/langchain/overview
+> **LangChain is the building blocks; LangGraph is the orchestration.** LangChain (JS/TS) gives you the components — models, prompts, parsers, retrievers, tools, runnables — for *single-flow* execution (`input → step → step → output`). Once you need loops, branching, persistent state, or multi-agent flow, you move to [LangGraph](agentic-patterns.md). Most examples from 2024 on end up there.
+> Source: https://docs.langchain.com/oss/javascript/langchain/overview
 
 ---
 
@@ -32,15 +33,86 @@ const model = new ChatOpenAI({
 
 ---
 
-## Most common commands
+**Packages:** `@langchain/openai` `@langchain/anthropic` (model providers) · `@langchain/community` (integrations) · `@langchain/textsplitters` · `@langchain/langgraph`.
 
-```bash
-npm i langchain @langchain/core zod
-npm i @langchain/openai @langchain/anthropic
-npm i @langchain/community
-npm i @langchain/textsplitters
-npm i @langchain/langgraph
+---
+
+## Runnables — the one abstraction
+
+**Everything is a Runnable** — models, prompts, parsers, retrievers, your own functions, and entire chains. They all share one interface, so they compose uniformly:
+
+```text
+input ──► runnable ──► output
 ```
+
+Every Runnable has the same three methods:
+
+```ts
+await chain.invoke(input);    // one input → one output (most common)
+await chain.stream(input);    // stream output as it's produced
+await chain.batch(inputs);    // many inputs in parallel
+```
+
+Compose them with `.pipe()` — the output of one feeds the next. This builds a `RunnableSequence` (a graph of runnables):
+
+```ts
+const chain = prompt.pipe(model).pipe(parser);   // prompt → model → parser
+await chain.invoke({ topic: "RAG" });
+```
+
+Once this clicks, most of LangChain falls into place — it's all just runnables wired together.
+
+---
+
+## Composition primitives
+
+### RunnableLambda — your business logic as a step
+
+Wrap any function so it becomes a Runnable you can `.pipe()` into a chain. Where DB lookups, transforms, and side logic live.
+
+```ts
+import { RunnableLambda } from "@langchain/core/runnables";
+
+const loadUser = RunnableLambda.from(async (userId: string) =>
+  db.users.findById(userId),
+);
+
+const chain = loadUser.pipe(profilePrompt).pipe(model);
+```
+
+### RunnablePassthrough.assign — enrich state without losing it
+
+Carry the input forward and *add* keys to it — instead of replacing it. The backbone of RAG and agent pipelines, where you accumulate context.
+
+```ts
+import { RunnablePassthrough } from "@langchain/core/runnables";
+
+const enriched = RunnablePassthrough.assign({
+  customer: loadCustomer,    // each runs on the input, result merged in under this key
+  orders: loadOrders,
+});
+
+// { customerId: "123" }  →  { customerId: "123", customer: {...}, orders: [...] }
+```
+
+### RunnableParallel — run branches simultaneously
+
+Fan one input out to multiple runnables at once, collect a keyed object. Common in extraction.
+
+```ts
+import { RunnableParallel } from "@langchain/core/runnables";
+
+const extract = RunnableParallel.from({
+  summary: summaryChain,
+  sentiment: sentimentChain,
+  entities: entityChain,
+});
+
+// document  →  { summary: "...", sentiment: "...", entities: [...] }
+const out = await extract.invoke(document);
+```
+
+---
 
 ## Chat model call
 
@@ -132,51 +204,40 @@ const res = await agent.invoke({
 
 ---
 
-## LCEL chains
+## When to move to LangGraph
 
-LCEL means `runnable.pipe(nextRunnable)`.
+Everything above is **single-flow**: `input → step1 → step2 → output`. Reach for [LangGraph](agentic-patterns.md) the moment you need:
 
-```ts
-import { StringOutputParser } from "@langchain/core/output_parsers";
+- **loops** (agent reasoning, retry-until-valid)
+- **branching / conditional routing**
+- **persistent state** across steps or turns
+- **human-in-the-loop** or **multi-agent** coordination
 
-const chain = prompt
-  .pipe(model)
-  .pipe(new StringOutputParser());
+A LangGraph node is usually just a Runnable or an `async (state) => ({...})` — so the runnable knowledge above carries straight over.
 
-const text = await chain.invoke({ topic: "LangChain", words: 30 });
+```text
+        START → classify ─┬─► research ─┐
+                          ├─► summarise ─┼─► END
+                          └─► escalate ──┘
 ```
 
-Parallel steps:
+---
+
+## Output parsers
+
+A raw model call returns an `AIMessage`. A parser is the last `.pipe()` step that turns it into what you actually want — a string, JSON, or a typed object.
 
 ```ts
-import { RunnableParallel } from "@langchain/core/runnables";
+import { StringOutputParser, JsonOutputParser } from "@langchain/core/output_parsers";
 
-const chain = RunnableParallel.from({
-  joke: jokePrompt.pipe(model),
-  haiku: haikuPrompt.pipe(model),
-});
-
-const out = await chain.invoke({ topic: "databases" });
+const text = await prompt.pipe(model).pipe(new StringOutputParser()).invoke(input);
+const json = await prompt.pipe(model).pipe(new JsonOutputParser()).invoke(input);
 ```
 
-Streaming:
+For typed, schema-validated objects prefer `withStructuredOutput` (binds the schema *and* parses — see [Structured output](#structured-output) above) over a standalone parser:
 
 ```ts
-const stream = await model.stream("Write a short haiku about logs.");
-
-for await (const chunk of stream) {
-  process.stdout.write(String(chunk.content));
-}
-```
-
-Batching:
-
-```ts
-const results = await model.batch([
-  "Summarise Redis",
-  "Summarise Postgres",
-  "Summarise Kafka",
-]);
+const classifier = model.withStructuredOutput(Ticket);   // returns a typed object, validated
 ```
 
 ---
@@ -214,16 +275,32 @@ const embeddings = new OpenAIEmbeddings({
 const vector = await embeddings.embedQuery("refund policy");
 ```
 
-Simple in-memory vector store:
+Store and retrieve. **Vector store = storage; retriever = the retrieval interface.** `.asRetriever()` turns a store into a Runnable you can `.pipe()` into a chain — most chains consume a *retriever*, not a store directly.
 
 ```ts
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 
 const store = await MemoryVectorStore.fromDocuments(docs, embeddings);
+
+// store API — returns Document[]
 const results = await store.similaritySearch("refund policy", 4);
+
+// retriever — a Runnable; composes into chains, returns Document[]
+const retriever = store.asRetriever({ k: 4 });
+const docs2 = await retriever.invoke("refund policy");
 ```
 
-Answer with retrieved context:
+Wire retrieval into a chain with `RunnablePassthrough` (retrieve, keep the question, then answer):
+
+```ts
+const ragChain = RunnablePassthrough.assign({
+  context: (x) => retriever.invoke(x.question),
+}).pipe(answerPrompt).pipe(model);
+
+await ragChain.invoke({ question: "What is the refund policy?" });
+```
+
+Answer with retrieved context (manual version):
 
 ```ts
 const context = results.map((doc) => doc.pageContent).join("\n\n");
@@ -290,6 +367,20 @@ const reliable = model.withRetry({ stopAfterAttempt: 3 });
 await reliable.invoke("Write release notes");
 ```
 
+**Stream tokens to stdout:**
+```ts
+for await (const chunk of await chain.stream(input)) {
+  process.stdout.write(String(chunk.content ?? chunk));
+}
+```
+
+**Insert a transform mid-chain (RunnableLambda):**
+```ts
+const chain = retriever
+  .pipe(RunnableLambda.from((docs) => docs.map((d) => d.pageContent).join("\n\n")))
+  .pipe(answerPrompt).pipe(model);
+```
+
 **Load `.env` in local scripts:**
 ```bash
 npm i dotenv
@@ -300,8 +391,10 @@ node --env-file=.env src/index.js
 
 ## Tips
 
-- Use Zod schemas for tool inputs and structured output.
-- Use LCEL for simple pipelines; use LangGraph when control flow becomes stateful or cyclic.
+- **Everything is a Runnable** with `invoke`/`stream`/`batch` — learn that interface first; the rest is composition.
+- `RunnablePassthrough.assign` to *enrich* state, `RunnableLambda` to inject logic, `RunnableParallel` to fan out — the three you reach for constantly.
+- Use Zod schemas for tool inputs and structured output; prefer `withStructuredOutput` over standalone parsers.
+- LangChain for single-flow pipelines; **LangGraph the moment you need loops, branching, state, or multi-agent.**
 - Keep retrievers and model calls behind small functions so tests can stub them.
 - Trace early; agent bugs are usually invisible without inputs, tool calls, and outputs.
 - Pin package versions in production. LangChain APIs move.
