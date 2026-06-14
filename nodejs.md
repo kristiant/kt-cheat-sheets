@@ -8,6 +8,14 @@
 
 ---
 
+## Mental model — the event loop
+
+Node runs your JavaScript on a **single thread**. I/O (files, network, DB, model APIs) is **non-blocking**: it's handed off and the result returns later as a promise/callback, while the thread keeps serving other work. This is why everything is `async`, and why one process handles thousands of concurrent connections.
+
+The one rule: **don't block the loop** with heavy synchronous CPU work — it freezes *every* request. Offload it (worker threads) or keep it off the hot path. (Most LLM-app latency is I/O, which the loop already handles well.)
+
+---
+
 ## Modules: ESM vs CommonJS
 
 ```js
