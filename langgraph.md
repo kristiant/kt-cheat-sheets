@@ -6,7 +6,8 @@
 
 **Typically used for:** Tool-calling agents, multi-step workflows, human-in-the-loop flows, long-running agents, memory, retries, and cyclic reasoning loops.
 
-> This sheet focuses on LangGraph JS/TS. Source: https://docs.langchain.com/oss/javascript/langgraph/overview
+> **LangGraph is the orchestration layer over [LangChain](langchain.md)'s building blocks.** LangChain handles single-flow (`input → step → output`); LangGraph adds loops, branching, persistent state, and multi-agent flow. A node is usually just a LangChain Runnable or an `async (state) => ({...})` — so the runnable knowledge carries straight over. For higher-level *patterns* (reliability, cost, multi-agent topologies) see [agentic-patterns.md](agentic-patterns.md).
+> Source: https://docs.langchain.com/oss/javascript/langgraph/overview
 
 ---
 
@@ -23,17 +24,37 @@ export OPENAI_API_KEY=sk-...
 
 ---
 
-## Most common imports
+## Mental model — State, Nodes, Edges
+
+A LangGraph app is three primitives:
+
+| Primitive | What it is |
+|---|---|
+| **State** | A typed shared object every node reads and writes. Defined with `Annotation.Root`. **Reducers** decide how writes merge (essential once nodes run in parallel). |
+| **Node** | A function (or Runnable) `(state) => partialUpdate`. The work. Returns *only the keys it changes*. |
+| **Edge** | Wiring that decides what runs next — a fixed edge, or a **conditional edge** whose router function returns the next node's name. |
+
+The build lifecycle is always the same shape:
 
 ```ts
-import {
-  Annotation,
-  END,
-  MemorySaver,
-  START,
-  StateGraph,
-} from "@langchain/langgraph";
+const graph = new StateGraph(State)   // 1. declare the state shape
+  .addNode("work", workFn)            // 2. add nodes (the work)
+  .addEdge(START, "work")             // 3. wire the flow: START → ... → END
+  .addEdge("work", END)
+  .compile();                         // 4. produce a runnable graph
+
+await graph.invoke(input);            // 5. run it — invoke / stream / batch
 ```
+
+> A compiled graph is **itself a Runnable** (same `invoke`/`stream`/`batch` interface as anything in [LangChain](langchain.md)) — so it nests inside other chains and graphs as a node.
+
+Common imports:
+
+```ts
+import { Annotation, StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
+```
+
+---
 
 ## Minimal graph
 
@@ -59,16 +80,18 @@ console.log(result.joke);
 
 ## State with reducers
 
-Reducers merge updates from multiple nodes.
+A reducer decides how a key's updates merge. Without one, the last write **overwrites**; with an append reducer, writes accumulate. This is what makes parallel fan-out safe — two nodes writing the same key in one step would otherwise conflict.
 
 ```ts
 const State = Annotation.Root({
   messages: Annotation<string[]>({
-    reducer: (left, right) => left.concat(right),
+    reducer: (left, right) => left.concat(right),   // append, don't overwrite
     default: () => [],
   }),
 });
 ```
+
+> `MessagesAnnotation` is a prebuilt state with exactly this messages reducer — use it for chat agents instead of redefining it.
 
 ## Conditional edges
 
