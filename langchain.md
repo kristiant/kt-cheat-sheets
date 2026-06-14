@@ -6,7 +6,7 @@
 
 **Typically used for:** RAG pipelines, structured extraction, chatbots, tool calling, model-provider switching, and as the building blocks under a LangGraph agent.
 
-> **LangChain is the building blocks; LangGraph is the orchestration.** LangChain (JS/TS) gives you the components — models, prompts, parsers, retrievers, tools, runnables — for *single-flow* execution (`input → step → step → output`). Once you need loops, branching, persistent state, or multi-agent flow, you move to [LangGraph](agentic-patterns.md). Most examples from 2024 on end up there.
+> **LangChain is the building blocks; LangGraph is the orchestration.** LangChain (JS/TS) gives you the components — models, prompts, parsers, retrievers, tools, runnables — for *single-flow* execution (`input → step → step → output`). Once you need loops, branching, persistent state, or multi-agent flow, you move to [LangGraph](langgraph.md). Most examples from 2024 on end up there.
 > Source: https://docs.langchain.com/oss/javascript/langchain/overview
 
 ---
@@ -206,7 +206,7 @@ const res = await agent.invoke({
 
 ## When to move to LangGraph
 
-Everything above is **single-flow**: `input → step1 → step2 → output`. Reach for [LangGraph](agentic-patterns.md) the moment you need:
+Everything above is **single-flow**: `input → step1 → step2 → output`. Reach for [LangGraph](langgraph.md) the moment you need:
 
 - **loops** (agent reasoning, retry-until-valid)
 - **branching / conditional routing**
