@@ -15,12 +15,14 @@
 The **schema is the single source of truth** — define the shape once, get runtime validation *and* the static type from it, so they can never drift.
 
 ```ts
-const User = z.object({ id: z.string(), age: z.number() });
-type User = z.infer<typeof User>;     // { id: string; age: number } — derived, not duplicated
+const UserSchema = z.object({ id: z.string(), age: z.number() });
+type User = z.infer<typeof UserSchema>;   // { id: string; age: number } — derived, not duplicated
 
-User.parse(data);       // → typed value, THROWS on invalid
-User.safeParse(data);   // → { success, data | error } — no throw
+UserSchema.parse(data);       // → typed value, THROWS on invalid
+UserSchema.safeParse(data);   // → { success, data | error } — no throw
 ```
+
+**Naming convention:** suffix the schema with `Schema` (`UserSchema`) and give the inferred type the plain name (`User`). The suffix is what lets the value and the type coexist without clashing.
 
 "Parse, don't validate": at every boundary (API body, env, webhook, LLM output) turn `unknown` into a typed value and fail loudly if it doesn't fit.
 
@@ -56,9 +58,9 @@ schema.safeParse(input);          // returns { success, data } or { success, err
 schema.parseAsync(input);         // for async refinements/transforms
 schema.safeParseAsync(input);     // async non-throwing parse
 
-type User = z.infer<typeof User>; // output type
-type In = z.input<typeof Schema>; // input type
-type Out = z.output<typeof Schema>; // output type after transforms
+type User = z.infer<typeof UserSchema>;   // output type
+type In = z.input<typeof UserSchema>;      // input type
+type Out = z.output<typeof UserSchema>;    // output type after transforms
 ```
 
 > Source: Zod's basic usage docs cover `parse`, `safeParse`, async parsing, and type inference: https://zod.dev/basics
@@ -66,16 +68,16 @@ type Out = z.output<typeof Schema>; // output type after transforms
 ## Basic schema
 
 ```ts
-const User = z.object({
+const UserSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
   email: z.email(),
   age: z.number().int().nonnegative().optional(),
 });
 
-type User = z.infer<typeof User>;
+type User = z.infer<typeof UserSchema>;
 
-const user = User.parse({
+const user = UserSchema.parse({
   id: "550e8400-e29b-41d4-a716-446655440000",
   name: "Ada",
   email: "ada@example.com",
@@ -85,7 +87,7 @@ const user = User.parse({
 ## Safe parsing
 
 ```ts
-const result = User.safeParse(input);
+const result = UserSchema.safeParse(input);
 
 if (!result.success) {
   console.error(z.prettifyError(result.error));   // human-readable summary
@@ -142,13 +144,13 @@ z.coerce.number(); // "42" -> 42
 These are Zod schema methods — each returns a **new schema** (the original is unchanged), the same way `Array.prototype.map` returns a new array.
 
 ```ts
-const BaseUser = z.object({ id: z.uuid(), name: z.string() });
+const BaseUserSchema = z.object({ id: z.uuid(), name: z.string() });
 
-BaseUser.pick({ id: true });            // keep only listed keys   → { id }
-BaseUser.omit({ id: true });            // drop listed keys        → { name }
-BaseUser.partial();                     // make all keys optional  → { id?, name? }
-BaseUser.required();                    // make all keys required
-BaseUser.extend({ email: z.email() });  // add (or override) keys  → { id, name, email }
+BaseUserSchema.pick({ id: true });            // keep only listed keys   → { id }
+BaseUserSchema.omit({ id: true });            // drop listed keys        → { name }
+BaseUserSchema.partial();                     // make all keys optional  → { id?, name? }
+BaseUserSchema.required();                    // make all keys required
+BaseUserSchema.extend({ email: z.email() });  // add (or override) keys  → { id, name, email }
 ```
 
 ### Unknown keys
@@ -182,11 +184,11 @@ z.record(z.string(), z.number());
 ## Unions and enums
 
 ```ts
-const Role = z.enum(["admin", "member", "viewer"]);
+const RoleSchema = z.enum(["admin", "member", "viewer"]);
 
-const Id = z.union([z.string(), z.number()]);
+const IdSchema = z.union([z.string(), z.number()]);
 
-const Event = z.discriminatedUnion("type", [
+const EventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("created"), id: z.uuid() }),
   z.object({ type: z.literal("deleted"), id: z.uuid(), reason: z.string() }),
 ]);
@@ -239,10 +241,10 @@ z.number().catch(0).parse("not a number");         // 0
 | `z.coerce.date()` | `new Date(x)` | `"2024-01-01"` → `Date` |
 
 ```ts
-const Query = z.object({
+const QuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),   // "2" → 2
 });
-Query.parse({ page: "2" });
+QuerySchema.parse({ page: "2" });
 ```
 
 ### `z.coerce.boolean()` is a trap
@@ -269,7 +271,7 @@ flag.parse("maybe");   // throws ZodError
 ## Refinements
 
 ```ts
-const Password = z.string()
+const PasswordSchema = z.string()
   .min(12)
   .refine((value) => /[A-Z]/.test(value), {
     error: "Password must contain an uppercase letter",
@@ -279,7 +281,7 @@ const Password = z.string()
 Cross-field validation:
 
 ```ts
-const Signup = z.object({
+const SignupSchema = z.object({
   password: z.string().min(12),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -291,32 +293,32 @@ const Signup = z.object({
 ## Transforms
 
 ```ts
-const Slug = z.string()
+const SlugSchema = z.string()
   .trim()
   .toLowerCase()
   .transform((value) => value.replace(/\s+/g, "-"));
 
-Slug.parse(" Hello World "); // "hello-world"
+SlugSchema.parse(" Hello World "); // "hello-world"
 ```
 
 Input and output types can differ:
 
 ```ts
-const Length = z.string().transform((value) => value.length);
+const LengthSchema = z.string().transform((value) => value.length);
 
-type LengthInput = z.input<typeof Length>;   // string
-type LengthOutput = z.output<typeof Length>; // number
+type LengthInput = z.input<typeof LengthSchema>;   // string
+type LengthOutput = z.output<typeof LengthSchema>; // number
 ```
 
 ## Async validation
 
 ```ts
-const UniqueEmail = z.email().refine(
+const UniqueEmailSchema = z.email().refine(
   async (email) => !(await userExists(email)),
   { error: "Email is already taken" },
 );
 
-await UniqueEmail.parseAsync("ada@example.com");
+await UniqueEmailSchema.parseAsync("ada@example.com");
 ```
 
 ---
@@ -326,7 +328,7 @@ await UniqueEmail.parseAsync("ada@example.com");
 Zod 4 moved error formatting to **top-level functions** (the old `error.flatten()` / `error.format()` methods are deprecated):
 
 ```ts
-const result = User.safeParse(input);
+const result = UserSchema.safeParse(input);
 
 if (!result.success) {
   z.flattenError(result.error);   // { formErrors, fieldErrors } — flat, for forms
@@ -337,7 +339,7 @@ if (!result.success) {
 
 ```ts
 try {
-  User.parse(input);
+  UserSchema.parse(input);
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.error(error.issues);   // array of issues — code, path, message
@@ -348,8 +350,8 @@ try {
 Custom error messages — pass a string, or `{ error }` (Zod 4 replaced `{ message }`):
 
 ```ts
-const Name = z.string().min(1, "Name is required");          // string shorthand
-const Age = z.number().int({ error: "Age must be whole" });  // object form
+const NameSchema = z.string().min(1, "Name is required");          // string shorthand
+const AgeSchema = z.number().int({ error: "Age must be whole" });  // object form
 ```
 
 ---
@@ -358,60 +360,60 @@ const Age = z.number().int({ error: "Age must be whole" });  // object form
 
 **Validate environment variables once at startup:**
 ```ts
-const Env = z.object({
+const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.url(),
 });
 
-export const env = Env.parse(process.env);
+export const env = EnvSchema.parse(process.env);
 ```
 
 **Validate an API request body:**
 ```ts
-const CreateUser = z.object({
+const CreateUserSchema = z.object({
   name: z.string().min(1),
   email: z.email(),
 });
 
-const body = CreateUser.parse(await request.json());
+const body = CreateUserSchema.parse(await request.json());
 ```
 
 **Validate query params from `URLSearchParams`:**
 ```ts
-const SearchQuery = z.object({
+const SearchQuerySchema = z.object({
   q: z.string().min(1),
   page: z.coerce.number().int().positive().default(1),
 });
 
-const query = SearchQuery.parse(Object.fromEntries(url.searchParams));
+const query = SearchQuerySchema.parse(Object.fromEntries(url.searchParams));
 ```
 
 **Validate JSON from `fetch`:**
 ```ts
-const Todo = z.object({
+const TodoSchema = z.object({
   id: z.number(),
   title: z.string(),
   completed: z.boolean(),
 });
 
 const res = await fetch("https://jsonplaceholder.typicode.com/todos/1");
-const todo = Todo.parse(await res.json());
+const todo = TodoSchema.parse(await res.json());
 ```
 
 **Make an update/patch schema from a create schema:**
 ```ts
-const CreatePost = z.object({
+const CreatePostSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
 });
 
-const UpdatePost = CreatePost.partial();   // all fields optional; wrap in z.strictObject to reject unknown keys
+const UpdatePostSchema = CreatePostSchema.partial();   // all fields optional; wrap in z.strictObject to reject unknown keys
 ```
 
 **Require at least one field in a patch object:**
 ```ts
-const UpdatePost = CreatePost.partial().refine(
+const UpdatePostSchema = CreatePostSchema.partial().refine(
   (value) => Object.keys(value).length > 0,
   { error: "At least one field is required" },
 );
@@ -419,28 +421,28 @@ const UpdatePost = CreatePost.partial().refine(
 
 **Strip unknown keys for public output:**
 ```ts
-const PublicUser = z.object({
+const PublicUserSchema = z.object({
   id: z.uuid(),
   name: z.string(),
 });
 
-return PublicUser.parse(databaseUser);
+return PublicUserSchema.parse(databaseUser);
 ```
 
 **Accept either one value or an array:**
 ```ts
-const StringList = z.union([z.string(), z.array(z.string())])
+const StringListSchema = z.union([z.string(), z.array(z.string())])
   .transform((value) => Array.isArray(value) ? value : [value]);
 ```
 
 **Validate a discriminated webhook payload:**
 ```ts
-const Webhook = z.discriminatedUnion("event", [
+const WebhookSchema = z.discriminatedUnion("event", [
   z.object({ event: z.literal("user.created"), userId: z.uuid() }),
   z.object({ event: z.literal("user.deleted"), userId: z.uuid(), reason: z.string() }),
 ]);
 
-const payload = Webhook.parse(await request.json());
+const payload = WebhookSchema.parse(await request.json());
 ```
 
 **Return API-friendly validation errors:**
@@ -459,11 +461,11 @@ if (!result.success) {
 ### Brand IDs so strings don't mix
 
 ```ts
-const UserId = z.uuid().brand<"UserId">();
-const OrgId = z.uuid().brand<"OrgId">();
+const UserIdSchema = z.uuid().brand<"UserId">();
+const OrgIdSchema = z.uuid().brand<"OrgId">();
 
-type UserId = z.infer<typeof UserId>;
-type OrgId = z.infer<typeof OrgId>;
+type UserId = z.infer<typeof UserIdSchema>;
+type OrgId = z.infer<typeof OrgIdSchema>;
 ```
 
 ### Recursive schemas
@@ -471,20 +473,20 @@ type OrgId = z.infer<typeof OrgId>;
 Zod 4 supports recursion with a **getter** — the type is inferred automatically, no manual annotation or `z.lazy`:
 
 ```ts
-const Category = z.object({
+const CategorySchema = z.object({
   name: z.string(),
   get children() {
-    return z.array(Category);
+    return z.array(CategorySchema);
   },
 });
 
-type Category = z.infer<typeof Category>;   // { name: string; children: Category[] }
+type Category = z.infer<typeof CategorySchema>;   // { name: string; children: Category[] }
 ```
 
 ### Generate JSON Schema
 
 ```ts
-const jsonSchema = z.toJSONSchema(User);
+const jsonSchema = z.toJSONSchema(UserSchema);
 ```
 
 > Zod 4 includes JSON Schema conversion in the core docs: https://zod.dev/json-schema
@@ -504,6 +506,7 @@ import * as z from "zod/mini";
 - Parse only at system boundaries: HTTP, env, config, files, queues, and third-party APIs.
 - Use `safeParse` for request handling; use `parse` when invalid data should crash fast.
 - Export schemas and infer types from them; don't hand-write duplicate interfaces.
+- Suffix schemas with `Schema` (`const UserSchema`) and infer the plain type (`type User`) — keeps value and type names from clashing.
 - Use `z.coerce.*` for query strings and env vars, because they arrive as strings.
 - Use `z.stringbool()`, not `z.coerce.boolean()`, for `"true"`/`"false"` strings — `coerce.boolean` treats `"false"` as `true`.
 - Remember `.default()` fires only on `undefined`; for `null` use `.nullish().transform()` or `.catch()`.
