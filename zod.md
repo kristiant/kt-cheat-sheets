@@ -88,7 +88,7 @@ const user = User.parse({
 const result = User.safeParse(input);
 
 if (!result.success) {
-  console.error(result.error.flatten());
+  console.error(z.prettifyError(result.error));   // human-readable summary
   throw new Error("Invalid user");
 }
 
@@ -272,7 +272,7 @@ flag.parse("maybe");   // throws ZodError
 const Password = z.string()
   .min(12)
   .refine((value) => /[A-Z]/.test(value), {
-    message: "Password must contain an uppercase letter",
+    error: "Password must contain an uppercase letter",
   });
 ```
 
@@ -284,7 +284,7 @@ const Signup = z.object({
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   path: ["confirmPassword"],
-  message: "Passwords do not match",
+  error: "Passwords do not match",
 });
 ```
 
@@ -313,7 +313,7 @@ type LengthOutput = z.output<typeof Length>; // number
 ```ts
 const UniqueEmail = z.email().refine(
   async (email) => !(await userExists(email)),
-  { message: "Email is already taken" },
+  { error: "Email is already taken" },
 );
 
 await UniqueEmail.parseAsync("ada@example.com");
@@ -323,14 +323,15 @@ await UniqueEmail.parseAsync("ada@example.com");
 
 ## Error handling
 
+Zod 4 moved error formatting to **top-level functions** (the old `error.flatten()` / `error.format()` methods are deprecated):
+
 ```ts
 const result = User.safeParse(input);
 
 if (!result.success) {
-  return {
-    fieldErrors: result.error.flatten().fieldErrors,
-    formErrors: result.error.flatten().formErrors,
-  };
+  z.flattenError(result.error);   // { formErrors, fieldErrors } — flat, for forms
+  z.treeifyError(result.error);   // nested object mirroring the schema
+  z.prettifyError(result.error);  // human-readable string
 }
 ```
 
@@ -339,16 +340,16 @@ try {
   User.parse(input);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    console.error(error.issues);
+    console.error(error.issues);   // array of issues — code, path, message
   }
 }
 ```
 
-Custom messages:
+Custom error messages — pass a string, or `{ error }` (Zod 4 replaced `{ message }`):
 
 ```ts
-const Name = z.string().min(1, "Name is required");
-const Age = z.number().int("Age must be a whole number");
+const Name = z.string().min(1, "Name is required");          // string shorthand
+const Age = z.number().int({ error: "Age must be whole" });  // object form
 ```
 
 ---
@@ -412,7 +413,7 @@ const UpdatePost = CreatePost.partial();   // all fields optional; wrap in z.str
 ```ts
 const UpdatePost = CreatePost.partial().refine(
   (value) => Object.keys(value).length > 0,
-  { message: "At least one field is required" },
+  { error: "At least one field is required" },
 );
 ```
 
@@ -447,7 +448,7 @@ const payload = Webhook.parse(await request.json());
 const result = Schema.safeParse(input);
 
 if (!result.success) {
-  return Response.json({ errors: result.error.flatten() }, { status: 422 });
+  return Response.json({ errors: z.flattenError(result.error) }, { status: 422 });
 }
 ```
 
@@ -467,16 +468,17 @@ type OrgId = z.infer<typeof OrgId>;
 
 ### Recursive schemas
 
-```ts
-type Category = {
-  name: string;
-  children: Category[];
-};
+Zod 4 supports recursion with a **getter** — the type is inferred automatically, no manual annotation or `z.lazy`:
 
-const Category: z.ZodType<Category> = z.object({
+```ts
+const Category = z.object({
   name: z.string(),
-  children: z.lazy(() => Category.array()),
+  get children() {
+    return z.array(Category);
+  },
 });
+
+type Category = z.infer<typeof Category>;   // { name: string; children: Category[] }
 ```
 
 ### Generate JSON Schema
@@ -506,3 +508,4 @@ import * as z from "zod/mini";
 - Use `z.stringbool()`, not `z.coerce.boolean()`, for `"true"`/`"false"` strings — `coerce.boolean` treats `"false"` as `true`.
 - Remember `.default()` fires only on `undefined`; for `null` use `.nullish().transform()` or `.catch()`.
 - Use discriminated unions for event/webhook payloads; they narrow cleanly in TypeScript.
+- Format errors with `z.flattenError` (forms), `z.treeifyError` (nested), or `z.prettifyError` (logs) — not the deprecated `.flatten()`/`.format()`.
