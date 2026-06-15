@@ -10,7 +10,7 @@
 
 ---
 
-## The core idea: classify by *cause*, not by location
+## Classify by cause, not by location
 
 Three base classes, each with a sensible default log level. Pick by asking "whose fault is it?"
 

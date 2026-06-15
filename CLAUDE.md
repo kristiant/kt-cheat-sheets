@@ -41,4 +41,4 @@ Maximise copy-paste-ready code. Prefer a code block over a paragraph.
 
 - No tutorials that read like blog posts.
 - No exhaustive flag dumps — curate to what's actually used.
-- No marketing language.
+- No marketing language. Headings and prose state the thing plainly — write "Request lifecycle", not "Putting it together: the request lifecycle". No hype words ("powerful", "magic", "the big one", "dive in").

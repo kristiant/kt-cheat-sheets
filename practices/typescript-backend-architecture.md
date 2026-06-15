@@ -157,7 +157,7 @@ async function exportPdf() {
 
 ---
 
-## Putting it together — request lifecycle
+## Request lifecycle
 
 ```
 HTTP request
