@@ -175,26 +175,79 @@ const Event = z.discriminatedUnion("type", [
 ]);
 ```
 
-## Optional, nullable, defaults
+## Optional, nullable, nullish
 
 ```ts
-z.string().optional();             // string | undefined
-z.string().nullable();             // string | null
-z.string().nullish();              // string | null | undefined
-z.string().default("untitled");    // undefined -> "untitled"
-z.string().catch("fallback");      // invalid -> "fallback"
+z.string().optional();   // string | undefined          — key may be missing
+z.string().nullable();   // string | null               — value may be null
+z.string().nullish();    // string | null | undefined   — = .nullable().optional()
+```
+
+Pick by what the source can actually produce:
+
+- **`.optional()`** — the field may be *absent* (omitted JSON key, missing form field).
+- **`.nullable()`** — the field is present but its value may be `null` (a SQL `NULL` column).
+- **`.nullish()`** — either case: present-but-`null` *or* absent. Common for DB rows and partial API payloads.
+
+### Defaults vs null
+
+`.default()` only substitutes for `undefined` — **not `null`**:
+
+```ts
+z.string().default("x").parse(undefined);          // "x"
+z.string().nullable().default("x").parse(null);    // null  ← default does NOT fire
+```
+
+To treat `null` as the default too, map it explicitly:
+
+```ts
+z.string().nullish().transform((v) => v ?? "x");   // null AND undefined → "x"
+```
+
+`.catch()` is different again — it supplies a fallback when validation *fails entirely*:
+
+```ts
+z.number().catch(0).parse("not a number");         // 0
 ```
 
 ## Coercion
 
+`z.coerce.X()` runs the matching JS constructor on the input *before* validating — useful for query strings, env vars, and form data, which arrive as strings.
+
+| Schema | Runs | `"42"` | `""` |
+|---|---|---|---|
+| `z.coerce.string()` | `String(x)` | `"42"` | `""` |
+| `z.coerce.number()` | `Number(x)` | `42` | `0` |
+| `z.coerce.boolean()` | `Boolean(x)` | `true` | `false` |
+| `z.coerce.date()` | `new Date(x)` | — | — |
+
 ```ts
 const Query = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  includeArchived: z.coerce.boolean().default(false),
+  page: z.coerce.number().int().positive().default(1),   // "2" → 2
 });
-
-Query.parse({ page: "2", includeArchived: "true" });
+Query.parse({ page: "2" });
 ```
+
+### `z.coerce.boolean()` is a trap
+
+It's just `Boolean(x)`, so **any non-empty string is `true`** — including `"false"`, `"0"`, and `"no"`:
+
+```ts
+z.coerce.boolean().parse("false");   // true  ❌
+z.coerce.boolean().parse("");        // false
+```
+
+Use **`z.stringbool()`** (Zod 4) for real string→boolean parsing:
+
+```ts
+const flag = z.stringbool();   // "true"/"1"/"yes"/"on"/"y"/"enabled" → true
+                               // "false"/"0"/"no"/"off"/"n"/"disabled" → false (case-insensitive)
+flag.parse("false");   // false ✅
+flag.parse("FALSE");   // false
+flag.parse("maybe");   // throws ZodError
+```
+
+> Coercion widens the input type to `unknown` — `z.input` of a coerced field is `unknown`, not `string`.
 
 ## Refinements
 
@@ -433,5 +486,6 @@ import * as z from "zod/mini";
 - Use `safeParse` for request handling; use `parse` when invalid data should crash fast.
 - Export schemas and infer types from them; don't hand-write duplicate interfaces.
 - Use `z.coerce.*` for query strings and env vars, because they arrive as strings.
+- Use `z.stringbool()`, not `z.coerce.boolean()`, for `"true"`/`"false"` strings — `coerce.boolean` treats `"false"` as `true`.
+- Remember `.default()` fires only on `undefined`; for `null` use `.nullish().transform()` or `.catch()`.
 - Use discriminated unions for event/webhook payloads; they narrow cleanly in TypeScript.
-- Be careful with `z.coerce.boolean()` for user input; test the exact strings your clients send.
