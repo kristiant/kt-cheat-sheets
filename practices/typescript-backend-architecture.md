@@ -10,7 +10,7 @@
 
 ---
 
-## File naming — role suffixes
+## File naming (role suffixes)
 
 Every file declares its role with a dot-suffix, kebab-case, **one class per file**, file named after the class.
 
@@ -68,7 +68,7 @@ const service = new RoleService(roleRepository, mock(), mock());
 
 ---
 
-## The Controller → Service → Repository layers
+## Controller → Service → Repository layers
 
 Each layer has one job. Logic never leaks up into the controller or down into the repository.
 
@@ -128,7 +128,7 @@ async list(...) {}
 
 ---
 
-## TypeScript rules that hold the structure together
+## TypeScript rules
 
 These are the rules that keep the layers honest. (n8n enforces them via ESLint.)
 

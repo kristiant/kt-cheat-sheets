@@ -25,7 +25,7 @@ Prefer this over hand-rolled `as unknown as RoleRepository` casts — those sile
 
 ---
 
-## Constructor injection makes units trivial to isolate
+## Isolating units via constructor injection
 
 Because services take their deps as constructor args, a unit test just passes mocks — no module mocking, no globals. Mock everything below the unit under test; `mock()` (no type arg) covers deps you don't assert on.
 
@@ -75,7 +75,7 @@ describe('RoleService', () => {
 
 ---
 
-## Structure: AAA + a `describe` per method
+## Test structure (AAA, describe per method)
 
 Nest a `describe` per method under test, an `it` per behavior. Read tests as a spec of the unit.
 

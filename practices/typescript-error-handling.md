@@ -32,7 +32,7 @@ if (state === undefined)  throw new UnexpectedError('Unreachable: state must be 
 
 ---
 
-## The base error — metadata, not just a message
+## The base error class
 
 A shared `BaseError extends Error` carries reporting metadata so handlers don't have to guess.
 
@@ -74,7 +74,7 @@ catch (e) { throw new OperationalError('Failed to sync', { cause: e }); }
 
 ---
 
-## Domain errors — subclass with a message-building constructor
+## Domain error subclasses
 
 Don't sprinkle string literals at throw sites. Give each domain error a class whose constructor builds the message from inputs. Throwing becomes `throw new CredentialNotFoundError(id)`.
 
@@ -96,7 +96,7 @@ Benefits: consistent messages, greppable (`grep -r CredentialNotFoundError`), an
 
 ---
 
-## HTTP layer — a parallel `ResponseError` tree
+## HTTP `ResponseError` tree
 
 Keep transport concerns out of business errors. Services throw *domain/`UserError`*; the HTTP layer has its own tree carrying status codes, and an error handler maps between them.
 
@@ -121,7 +121,7 @@ if (error instanceof UserError)     return res.status(400).json({ message: error
 
 ---
 
-## Assertion helpers — throw-on-null with narrowing
+## Assertion helpers
 
 Attach static assertions to the error so a guard both throws *and* narrows the type for the compiler.
 
