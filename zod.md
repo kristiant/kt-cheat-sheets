@@ -139,18 +139,35 @@ z.coerce.number(); // "42" -> 42
 
 ## Objects
 
-```ts
-const BaseUser = z.object({
-  id: z.uuid(),
-  name: z.string(),
-});
+These are Zod schema methods — each returns a **new schema** (the original is unchanged), the same way `Array.prototype.map` returns a new array.
 
-const PublicUser = BaseUser.pick({ id: true, name: true });
-const UserPatch = BaseUser.partial();
-const StrictUser = BaseUser.strict();
-const LooseUser = BaseUser.passthrough();
-const UserWithEmail = BaseUser.extend({ email: z.email() });
+```ts
+const BaseUser = z.object({ id: z.uuid(), name: z.string() });
+
+BaseUser.pick({ id: true });            // keep only listed keys   → { id }
+BaseUser.omit({ id: true });            // drop listed keys        → { name }
+BaseUser.partial();                     // make all keys optional  → { id?, name? }
+BaseUser.required();                    // make all keys required
+BaseUser.extend({ email: z.email() });  // add (or override) keys  → { id, name, email }
 ```
+
+### Unknown keys
+
+The question these answer: what happens to input keys that *aren't* in the schema. By default Zod **strips** them:
+
+```ts
+z.object({ name: z.string() }).parse({ name: "Ada", extra: 1 });
+// → { name: "Ada" }    (extra is silently dropped)
+```
+
+To change that:
+
+```ts
+z.strictObject({ name: z.string() });   // error if any unknown key is present
+z.looseObject({ name: z.string() });    // keep unknown keys as-is
+```
+
+> In Zod 4 these replace the deprecated `.strict()` / `.passthrough()` methods (which still work for now).
 
 ## Arrays, tuples, records
 
@@ -388,7 +405,7 @@ const CreatePost = z.object({
   body: z.string().min(1),
 });
 
-const UpdatePost = CreatePost.partial().strict();
+const UpdatePost = CreatePost.partial();   // all fields optional; wrap in z.strictObject to reject unknown keys
 ```
 
 **Require at least one field in a patch object:**
