@@ -157,6 +157,36 @@ const res = await chain.invoke({ topic: "embeddings", words: 40 });
 console.log(res.content);
 ```
 
+## Messages & chat history
+
+Models speak in **message objects**, not strings. The `["system", "..."]` tuple is shorthand; the classes give you control and are what you store and replay:
+
+```ts
+import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+
+await model.invoke([
+  new SystemMessage("You are concise."),
+  new HumanMessage("Explain RAG."),
+]);
+```
+
+To inject prior turns into a prompt, leave a placeholder slot for them:
+
+```ts
+const prompt = ChatPromptTemplate.fromMessages([
+  ["system", "You are a support agent."],
+  ["placeholder", "{history}"],     // past messages drop in here (a MessagesPlaceholder)
+  ["human", "{input}"],
+]);
+
+await prompt.pipe(model).invoke({
+  history: [new HumanMessage("I was double charged"), new AIMessage("I can help.")],
+  input: "When will I be refunded?",
+});
+```
+
+> LangChain slots history *into a prompt* — it doesn't persist it. For durable multi-turn memory across requests, use LangGraph's checkpointer ([langgraph.md](langgraph.md)).
+
 ## Structured output
 
 ```ts
@@ -219,12 +249,44 @@ const res = await agent.invoke({
 
 ---
 
+## Routing
+
+Pick one of several chains based on the input — a **single pass**, no loops or state, so it stays in LangChain (cyclic/stateful branching is where LangGraph comes in).
+
+`RunnableBranch` — first matching condition wins, last entry is the default:
+
+```ts
+import { RunnableBranch } from "@langchain/core/runnables";
+
+const route = RunnableBranch.from([
+  [(x) => x.category === "billing", billingChain],
+  [(x) => x.category === "refund", refundChain],
+  generalChain,                                    // default — no condition
+]);
+```
+
+Or a `RunnableLambda` that *returns* a runnable — LCEL invokes whatever you return (more flexible for dynamic choice):
+
+```ts
+const route = RunnableLambda.from((x) =>
+  x.tokens > 4000 ? bigModelChain : smallModelChain,
+);
+```
+
+Common shape — classify, then route on the result:
+
+```ts
+const chain = classify.pipe(route);   // classify → { category } → branch picks a chain
+```
+
+---
+
 ## When to move to LangGraph
 
 Everything above is **single-flow**: `input → step1 → step2 → output`. Reach for [LangGraph](langgraph.md) the moment you need:
 
 - **loops** (agent reasoning, retry-until-valid)
-- **branching / conditional routing**
+- **stateful or cyclic branching** (single-pass routing stays in LangChain — see [Routing](#routing))
 - **persistent state** across steps or turns
 - **human-in-the-loop** or **multi-agent** coordination
 
@@ -328,6 +390,29 @@ const res = await model.invoke([
 
 ---
 
+## Debugging
+
+**See the chain's structure** as a Mermaid diagram:
+
+```ts
+console.log(chain.getGraph().drawMermaid());   // paste into any Mermaid renderer
+```
+
+**Watch every step fire** — `streamEvents` emits an event per chain/model/tool start and per token. The main way to see *inside* a chain or agent:
+
+```ts
+for await (const ev of chain.streamEvents(input, { version: "v2" })) {
+  if (ev.event === "on_chat_model_stream") process.stdout.write(ev.data.chunk.content);
+  if (ev.event === "on_tool_start") console.log("tool:", ev.name, ev.data.input);
+}
+```
+
+**Name steps** so traces and logs are readable:
+
+```ts
+chain.withConfig({ runName: "answer-question", tags: ["rag"] });
+```
+
 ## LangSmith tracing
 
 ```bash
@@ -336,7 +421,7 @@ export LANGSMITH_API_KEY=lsv2_...
 export LANGSMITH_PROJECT=my-project
 ```
 
-LangChain automatically traces many runs when tracing env vars are set.
+LangChain automatically traces many runs when tracing env vars are set — full inputs, tool calls, and outputs per step.
 
 ---
 
@@ -382,6 +467,18 @@ const reliable = model.withRetry({ stopAfterAttempt: 3 });
 await reliable.invoke("Write release notes");
 ```
 
+**Fall back to another model on error:**
+```ts
+const llm = primary.withFallbacks({ fallbacks: [backupModel] });
+await llm.invoke(prompt);   // tries primary, then backupModel on failure
+```
+
+**Read token usage for cost tracking:**
+```ts
+const res = await model.invoke("Summarise this");
+res.usage_metadata;   // { input_tokens, output_tokens, total_tokens }
+```
+
 **Stream tokens to stdout:**
 ```ts
 for await (const chunk of await chain.stream(input)) {
@@ -411,5 +508,7 @@ node --env-file=.env src/index.js
 - Use Zod schemas for tool inputs and structured output; prefer `withStructuredOutput` over standalone parsers.
 - LangChain for single-flow pipelines; **LangGraph the moment you need loops, branching, state, or multi-agent.**
 - Keep retrievers and model calls behind small functions so tests can stub them.
+- Debug with `streamEvents` (see inside a run) and `getGraph().drawMermaid()` (see the structure); name steps with `withConfig({ runName })`.
+- Stateless routing (`RunnableBranch`) stays in LangChain; cyclic/stateful branching is LangGraph.
 - Trace early; agent bugs are usually invisible without inputs, tool calls, and outputs.
 - Pin package versions in production. LangChain APIs move.
