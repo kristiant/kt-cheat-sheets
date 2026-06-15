@@ -214,12 +214,12 @@ z.number().catch(0).parse("not a number");         // 0
 
 `z.coerce.X()` runs the matching JS constructor on the input *before* validating — useful for query strings, env vars, and form data, which arrive as strings.
 
-| Schema | Runs | `"42"` | `""` |
-|---|---|---|---|
-| `z.coerce.string()` | `String(x)` | `"42"` | `""` |
-| `z.coerce.number()` | `Number(x)` | `42` | `0` |
-| `z.coerce.boolean()` | `Boolean(x)` | `true` | `false` |
-| `z.coerce.date()` | `new Date(x)` | — | — |
+| Schema | Runs | Example (input → output) |
+|---|---|---|
+| `z.coerce.string()` | `String(x)` | `42` → `"42"` |
+| `z.coerce.number()` | `Number(x)` | `"42"` → `42`, `""` → `0` |
+| `z.coerce.boolean()` | `Boolean(x)` | `"false"` → `true` (!), `""` → `false` |
+| `z.coerce.date()` | `new Date(x)` | `"2024-01-01"` → `Date` |
 
 ```ts
 const Query = z.object({
