@@ -392,6 +392,17 @@ const res = await model.invoke([
 
 ## Debugging
 
+**`verbose: true`** — the quickest switch. Attaches a `ConsoleCallbackHandler` that prints every step (prompts, tool calls, outputs) to stdout:
+
+```ts
+const model = new ChatOpenAI({ model: "gpt-4o-mini", verbose: true });
+// or per call:
+await chain.invoke(input, { callbacks: [new ConsoleCallbackHandler()] });
+//   import { ConsoleCallbackHandler } from "@langchain/core/tracers/console";
+```
+
+> Unlike Python, JS has no global `setVerbose`/`setDebug` — set `verbose` (or pass `callbacks`) per runnable.
+
 **See the chain's structure** as a Mermaid diagram:
 
 ```ts
