@@ -37,9 +37,9 @@ const model = new ChatOpenAI({
 
 ---
 
-## Runnables — the one abstraction
+## Runnables
 
-**Everything is a Runnable** — models, prompts, parsers, retrievers, your own functions, and entire chains. They all share one interface, so they compose uniformly:
+Models, prompts, parsers, retrievers, your own functions, and entire chains are all **Runnables** — they share one interface, so they compose uniformly:
 
 ```text
 input ──► runnable ──► output
@@ -60,18 +60,16 @@ const chain = prompt.pipe(model).pipe(parser);   // prompt → model → parser
 await chain.invoke({ topic: "RAG" });
 ```
 
-Once this clicks, most of LangChain falls into place — it's all just runnables wired together.
+Most LangChain components are runnables composed this way.
 
 ---
 
 ## Composition primitives
 
-### `.pipe()` vs `.assign()` — the key mental model
+### `.pipe()` vs `.assign()`
 
-The distinction that trips everyone up:
-
-- **`.pipe()` replaces** — the previous step's output *becomes* the next step's input. The value is reshaped; earlier data is gone unless you carried it.
-- **`.assign()` augments** — keeps the whole input object and *adds* keys to it. Each assigned runnable receives the *same* input; its result is merged in under a key. Nothing is lost.
+- **`.pipe()` replaces** — the previous step's output becomes the next step's input. The value is reshaped; earlier data is gone unless you carried it.
+- **`.assign()` augments** — keeps the whole input object and adds keys to it. Each assigned runnable receives the same input; its result is merged in under a key. Nothing is lost.
 
 ```ts
 // pipe: shape changes, question is gone after retrieve
@@ -99,7 +97,7 @@ const chain = loadUser.pipe(profilePrompt).pipe(model);
 
 ### RunnablePassthrough.assign — enrich state without losing it
 
-Carry the input forward and *add* keys to it — instead of replacing it. The backbone of RAG and agent pipelines, where you accumulate context.
+Carry the input forward and add keys to it instead of replacing it. Common in RAG and agent pipelines, where you accumulate context.
 
 ```ts
 import { RunnablePassthrough } from "@langchain/core/runnables";

@@ -30,7 +30,7 @@ A LangGraph app is three primitives:
 
 | Primitive | What it is |
 |---|---|
-| **State** | A typed shared object every node reads and writes. Defined with `Annotation.Root`. **Reducers** decide how writes merge (essential once nodes run in parallel). |
+| **State** | A typed shared object every node reads and writes. Defined with `Annotation.Root`. **Reducers** decide how writes merge (required once nodes run in parallel). |
 | **Node** | A function (or Runnable) `(state) => partialUpdate`. The work. Returns *only the keys it changes*. |
 | **Edge** | Wiring that decides what runs next — a fixed edge, or a **conditional edge** whose router function returns the next node's name. |
 

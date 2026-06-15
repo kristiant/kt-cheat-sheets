@@ -401,7 +401,7 @@ for await (const [msg] of await app.stream(input, { streamMode: "messages" })) {
 ## Tips
 
 - Start with the **simplest** pattern (single LLM call → chain → router → agent). Add structure only when it fails.
-- A reducer on every concurrently-written key — non-negotiable for parallel graphs.
+- A reducer on every concurrently-written key — required for parallel graphs.
 - Checkpointer + unique `thread_id` is what gives you memory, resume, and human-in-the-loop. It's the harness, not an add-on.
 - Cap loops everywhere — `recursionLimit`, iteration counters, supervisor step limits.
 - Prefer `createReactAgent` over hand-rolling the tool loop unless you need custom control flow.
