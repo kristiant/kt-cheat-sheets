@@ -45,6 +45,25 @@ function isUser(x: unknown): x is User {              // narrow unknown at bound
 if ("error" in e) { /* e has error */ }              // `in` narrowing
 ```
 
+### Assertion functions — `asserts x is T`
+
+Throw-on-invalid *and* narrow the variable for the rest of the scope. Prefer over a non-null `!` or re-checking.
+
+```ts
+function assertIsUser(x: unknown): asserts x is User {
+  if (!isUser(x)) throw new Error("not a User");
+}
+assertIsUser(data);
+data.id;                                              // ✅ narrowed to User, no `!`
+
+// assert non-null (common in repos/services)
+function assertDefined<T>(v: T | null | undefined, msg: string): asserts v is T {
+  if (v == null) throw new Error(msg);
+}
+```
+
+> Prefer type guards / assertion functions over `as` casts — `as` silences the compiler without checking. Reserve `as` for test code. (See [practices/typescript-error-handling.md](../practices/typescript-error-handling.md) for static `asserts` on error classes.)
+
 ### `satisfies` — validate without widening
 
 Checks a value against a type while **keeping its narrow literal type** — unlike `: Type`, which widens.

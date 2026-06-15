@@ -29,7 +29,7 @@ Maximise copy-paste-ready code. Prefer a code block over a paragraph.
 
 ## Format rules
 
-- Markdown, one file per topic: `topic-name.md` (kebab-case).
+- Markdown, one file per topic: `topic-name.md` (kebab-case). Tool/concept sheets live in `cheatsheets/`; cross-cutting convention guides (architecture, error handling, testing, validation) live in `practices/`.
 - Lead with the 3 intro answers, then commands, then examples (simple → advanced).
 - Code blocks always tagged with a language.
 - Real, runnable snippets — no pseudocode unless unavoidable.

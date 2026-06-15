@@ -79,6 +79,8 @@ await expect(promise).rejects.toThrow();
 
 ## Mocking
 
+> For typed whole-object mocks (`mock<T>()`), shared hoisted fixtures, AAA structure, `nock`, and mocking the LLM — i.e. how to *structure* real backend tests — see [practices/typescript-testing-patterns.md](../practices/typescript-testing-patterns.md).
+
 ```ts
 import { vi, expect, it } from "vitest";   // jest in Jest
 

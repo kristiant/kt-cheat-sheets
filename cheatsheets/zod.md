@@ -26,6 +26,8 @@ UserSchema.safeParse(data);   // → { success, data | error } — no throw
 
 "Parse, don't validate": at every boundary (API body, env, webhook, LLM output) turn `unknown` into a typed value and fail loudly if it doesn't fit.
 
+> Structuring schemas for a real backend (reusable `schemas/`, schema-as-class DTOs, sharing one types package FE↔BE, validating at the request boundary): see [practices/zod-dtos-and-validation-boundaries.md](../practices/zod-dtos-and-validation-boundaries.md).
+
 ---
 
 ## Setup

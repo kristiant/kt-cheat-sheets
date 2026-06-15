@@ -31,6 +31,15 @@ module.exports = { foo };
 - Use **ESM** for new projects. Prefix built-ins with `node:` (`node:fs`, `node:path`).
 - Top-level `await` works in ESM only.
 
+**Lazy-load heavy modules.** If a module is only needed on one code path (a big parser, a native addon), `await import()` it at point of use instead of a top-level import — it stays out of startup cost and memory until that path runs.
+
+```js
+async function exportPdf(doc) {
+  const { renderPdf } = await import("./heavy-pdf-renderer");  // loaded on demand
+  return renderPdf(doc);
+}
+```
+
 ---
 
 ## Async patterns
