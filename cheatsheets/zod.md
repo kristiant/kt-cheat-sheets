@@ -30,6 +30,38 @@ UserSchema.safeParse(data);   // → { success, data | error } — no throw
 
 ---
 
+## When to use Zod vs plain types
+
+The line is the **trust boundary**: data the compiler already guarantees vs data crossing in from outside as `unknown`. Zod is a boundary tool — it's not free (ships in the bundle, runs on every parse), so don't use it for data you produced internally.
+
+**Use Zod** where data enters untyped/untrusted and needs checking at runtime:
+
+| Source | Why |
+|---|---|
+| HTTP body / query / params | `req.body` is `any` — the `: User` annotation is a lie |
+| Env vars, config files | `process.env.PORT` is `string \| undefined` — validate + coerce once |
+| `JSON.parse()`, file contents | returns `any` |
+| Third-party API responses | the shape can change without your types knowing |
+| **LLM / tool output** | structured generation can return malformed JSON |
+| Webhooks, queue messages | external payloads |
+
+**Stick to `type` / `interface`** where the compiler already has you covered — function signatures, internal data structures, values you built in-process, and anything already validated once at the edge (don't re-parse on every internal hop).
+
+Tie-breaker — does the type need to exist at **runtime**?
+
+```ts
+// compile-time only (just for the checker) → interface/type, zero runtime cost
+interface AgentConfig { model: string; maxTokens: number }
+
+// runtime presence needed (a check, default, transform, coercion) → Zod, derive the type
+const AgentConfigSchema = z.object({ model: z.string(), maxTokens: z.coerce.number().default(1024) });
+type AgentConfig = z.infer<typeof AgentConfigSchema>;
+```
+
+**Parse, don't validate:** validate *once* at the edge, convert `unknown` → typed value, then trust the static type internally. The anti-pattern Zod replaces is `const user = data as User` on external data — a cast that checks nothing.
+
+---
+
 ## Setup
 
 ```bash
