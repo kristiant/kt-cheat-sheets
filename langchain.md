@@ -66,6 +66,23 @@ Once this clicks, most of LangChain falls into place — it's all just runnables
 
 ## Composition primitives
 
+### `.pipe()` vs `.assign()` — the key mental model
+
+The distinction that trips everyone up:
+
+- **`.pipe()` replaces** — the previous step's output *becomes* the next step's input. The value is reshaped; earlier data is gone unless you carried it.
+- **`.assign()` augments** — keeps the whole input object and *adds* keys to it. Each assigned runnable receives the *same* input; its result is merged in under a key. Nothing is lost.
+
+```ts
+// pipe: shape changes, question is gone after retrieve
+question ──pipe──► retrieve ──► Document[]        // ❌ prompt can't see the question anymore
+
+// assign: shape grows, question kept alongside the new context
+{ question } ──assign({ context: retrieve })──► { question, context }   // ✅ both available
+```
+
+Rule of thumb: **`pipe` for a linear transform, `assign` when a later step needs both the original input and the new value** — which is most RAG and agent prompts (they need the question *and* the retrieved context).
+
 ### RunnableLambda — your business logic as a step
 
 Wrap any function so it becomes a Runnable you can `.pipe()` into a chain. Where DB lookups, transforms, and side logic live.
