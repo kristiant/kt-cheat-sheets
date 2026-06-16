@@ -205,6 +205,36 @@ class Guardrail {
 new Guardrail().type("pii").strategy("block");   // each step returns `this` → chainable
 ```
 
+### Builder → Built (class to configure, interface to consume)
+
+A mutable builder **class** configures step by step and validates on `.build()`, which returns an immutable plain object typed by an **interface**. The class is for configuring; the interface is the data the rest of the system reads.
+
+```ts
+interface BuiltGuardrail {              // consume: immutable, all fields resolved, just data
+  readonly name: string;
+  readonly guardType: GuardrailType;
+}
+
+class Guardrail {                       // configure: mutable, optional fields, chains, validates
+  private guardType?: GuardrailType;
+  constructor(private name: string) {}
+  type(t: GuardrailType): this { this.guardType = t; return this; }
+
+  build(): BuiltGuardrail {
+    if (!this.guardType) throw new Error(`${this.name} requires a type`);
+    return { name: this.name, guardType: this.guardType };   // plain object, not `new`
+  }
+}
+```
+
+| Builder (class) | Built (interface + object) |
+|---|---|
+| `Guardrail`, `Tool`, `Agent` | `BuiltGuardrail`, `BuiltTool`, `BuiltAgent` |
+| mutable, optional fields, chains | immutable, all fields resolved |
+| validates at `.build()` | no methods — passed to the runtime, serializable |
+
+You can't `new` an interface — `.build()` returns an object literal that *satisfies* it. One line: **class to configure, interface to consume.** (Same split as [practices/agentic-products.md](../practices/agentic-products.md)'s `Built*` artifacts.)
+
 ---
 
 ## Advanced
