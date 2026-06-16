@@ -119,6 +119,31 @@ if (error instanceof UserError)     return res.status(400).json({ message: error
 // otherwise: log + report (it's an UnexpectedError / unknown) and return a generic 500
 ```
 
+### Build the right subclass from a status code (client side)
+
+The inverse direction — when you *consume* an HTTP API, a static factory maps a response status to the matching typed error in one place, so callers can `catch` by type:
+
+```ts
+export class APIError extends ResponseError {
+  static from(status: number, body: unknown, headers: Headers): APIError {
+    switch (status) {
+      case 400: return new BadRequestError(status, body, headers);
+      case 401: return new AuthenticationError(status, body, headers);
+      case 404: return new NotFoundError(status, body, headers);
+      case 429: return new RateLimitError(status, body, headers);
+      default:  return status >= 500
+        ? new InternalServerError(status, body, headers)
+        : new APIError(status, body, headers);
+    }
+  }
+}
+
+try { await client.query(); }
+catch (e) { if (e instanceof RateLimitError) await backoff(); }
+```
+
+> Grounded: the OpenAI / Anthropic / Turbopuffer SDKs (Stainless-generated) ship exactly this `APIError.generate(status, …)` factory over a per-status subclass tree.
+
 ---
 
 ## Assertion helpers
