@@ -161,6 +161,14 @@ type ById       = Record<string, User>;
 type Resolved   = Awaited<ReturnType<typeof fetchUser>>;
 ```
 
+Small custom utilities worth keeping around:
+
+```ts
+type PromiseOrValue<T> = T | Promise<T>;               // accept sync OR async (handlers, hooks)
+type KeysEnum<T> = { [K in keyof Required<T>]: true }; // a runtime-checkable map of a type's keys
+type NotAny<T> = [0] extends [1 & T] ? never : T;      // resolves to never if T is `any` (filter it out)
+```
+
 ### Generics that infer
 
 ```ts
@@ -242,6 +250,26 @@ class Guardrail {
 
 new Guardrail().type("pii").strategy("block");   // each step returns `this` → chainable
 ```
+
+### Async iterables — `for await`
+
+Implement `[Symbol.asyncIterator]` so a value can be streamed with `for await`. Pairs with lazy pagination — items yield while later pages fetch on demand.
+
+```ts
+class Pages<T> implements AsyncIterable<T> {
+  async *[Symbol.asyncIterator](): AsyncGenerator<T> {
+    let page = await this.first();
+    while (page) {
+      yield* page.items;
+      page = page.hasNext ? await page.next() : null;
+    }
+  }
+}
+
+for await (const item of pages) { /* fetched page by page, lazily */ }
+```
+
+> The OpenAI / Anthropic / Turbopuffer SDKs use this so `for await (const x of client.list())` auto-paginates.
 
 ### Builder → Built (class to configure, interface to consume)
 
@@ -380,6 +408,28 @@ type Paths<T, Depth extends number = 3> = Depth extends never
   ? { [K in keyof T]: /* recurse with */ Paths<T[K], Decrement[Depth]> }[keyof T]
   : never;
 ```
+
+### Custom thenable — a `Promise` with helpers
+
+Subclass `Promise` and override `then`/`catch`/`finally` so the value parses *lazily*, while exposing extra methods on the un-awaited call. Lets one call be awaited for parsed data *or* inspected for the raw response.
+
+```ts
+class ApiPromise<T> extends Promise<T> {
+  constructor(private raw: Promise<Response>, private parse: (r: Response) => Promise<T>) {
+    super((resolve) => resolve(undefined as never));   // no-op; real work happens in then()
+  }
+  override then<R>(onfulfilled?: (v: T) => R | PromiseLike<R>) {
+    return this.raw.then(this.parse).then(onfulfilled);
+  }
+  asResponse(): Promise<Response> { return this.raw; }                       // raw, no parse
+  async withResponse() { return { data: await this, response: await this.raw }; }
+}
+
+await client.query(input);                  // → parsed data
+await client.query(input).asResponse();     // → raw Response, unparsed
+```
+
+> Grounded: the OpenAI / Anthropic / Turbopuffer SDKs' `APIPromise` works exactly this way (parse deferred until `.then`).
 
 ### Object → union of its leaves via `[keyof T]`
 
