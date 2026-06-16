@@ -10,6 +10,44 @@
 
 ---
 
+## Core concepts
+
+The vocabulary the patterns below assume.
+
+- **Structural typing** — TS compares *shapes*, not names: a value fits a type if it has the required members, even if never declared as that type. (Why [branded types](#branded-types-nominal) exist — to fake nominal typing.)
+
+  ```ts
+  type Point = { x: number; y: number };
+  const q: Point = { x: 1, y: 2, z: 3 };   // assignable — has x and y (z aside)
+  ```
+
+- **Assignability / subtyping** — every type error is really "A isn't assignable to B". A is assignable to B if it has at least B's members.
+
+- **`unknown` / `any` / `never`** — `unknown` = top type (holds anything, but you must narrow before use); `any` = escape hatch that *disables* checking (avoid); `never` = bottom type (nothing — the type of impossible/exhausted cases, e.g. `assertNever`).
+
+- **Narrowing** — control flow refines a type to something more specific (`typeof`, `in`, `instanceof`, a discriminant, a type guard).
+
+- **Widening** — TS broadens a literal to its base type unless you stop it:
+
+  ```ts
+  let a = "x";     // string  (widened)
+  const b = "x";   // "x"     (literal kept)
+  ```
+
+- **Type space vs value space** — types and values are separate namespaces, so `const User` and `type User` coexist. Powers the Zod `Schema`-suffix convention and `interface` + same-named value.
+
+- **Excess property checks** — fresh object *literals* are checked for unknown keys; the same object through a variable is not:
+
+  ```ts
+  const c: Point = { x: 1, y: 2, z: 3 };   // ❌ z is excess (fresh literal)
+  const obj = { x: 1, y: 2, z: 3 };
+  const d: Point = obj;                     // ✅ no excess check via a variable
+  ```
+
+- **Distributive conditional types** — `T extends U ? X : Y` applies per-member over a union `T` (powers `Exclude`/`Extract`). **Variance** — how generic positions affect assignability (mainly function params/returns); an occasional footgun.
+
+---
+
 ## Everyday patterns
 
 ### Discriminated unions + exhaustiveness
