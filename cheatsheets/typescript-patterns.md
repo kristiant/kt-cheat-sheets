@@ -36,6 +36,40 @@ function handle(e: AgentEvent) {
 }
 ```
 
+### Compose with `&` (intersection)
+
+Share a common field set across many types by intersecting it in, instead of repeating fields or forcing an `extends` chain.
+
+```ts
+interface ContentMetadata {
+  providerMetadata?: Record<string, unknown>;
+}
+
+type Citation = ContentMetadata & {   // = the shared fields + these
+  type: "citation";
+  url?: string;
+  title?: string;
+};
+```
+
+### Shared fields + a discriminated union
+
+Intersect a shared type with a parenthesised union: every value carries the common fields **and** is exactly one variant. Narrowing on the discriminant still works.
+
+```ts
+type StreamChunk = ContentMetadata & (
+  | { type: "text-delta"; id: string; delta: string }
+  | { type: "tool-call"; toolCallId: string; input: unknown }
+  | { type: "finish"; finishReason: FinishReason; usage?: TokenUsage }
+  | { type: "error"; error: unknown }
+);
+
+function handle(c: StreamChunk) {
+  c.providerMetadata;                  // available on every variant (from the intersection)
+  if (c.type === "text-delta") c.delta; // narrowed
+}
+```
+
 ### Type guards & narrowing
 
 ```ts
@@ -98,6 +132,20 @@ function pluck<T, K extends keyof T>(obj: T, key: K): T[K] {
 pluck({ id: 1, name: "x" }, "name");   // return type: string, inferred
 ```
 
+### Optional generic with a default
+
+A defaulted type param is a precision *hook*: the loose default keeps most call sites simple, while callers who know the shape opt into stricter typing — without changing the base type.
+
+```ts
+type TokenUsage<T extends Record<string, unknown> = Record<string, unknown>> = {
+  totalTokens: number;
+  metadata?: T;
+};
+
+type Loose = TokenUsage;                          // metadata?: Record<string, unknown>
+type Tight = TokenUsage<{ provider: "openai" }>;  // metadata?: { provider: "openai" }
+```
+
 ### Result type (errors as values)
 
 ```ts
@@ -113,6 +161,32 @@ if (r.ok) use(r.value); else recover(r.error);       // both paths enforced
 type UserId = string & { readonly __brand: "UserId" };
 const UserId = (s: string) => s as UserId;
 getUser(UserId("u_1"));   // plain string rejected
+```
+
+### `interface` vs `type`
+
+```ts
+interface User { id: string; name: string }   // object shape — extendable / implementable
+type Status = "active" | "archived";           // union — must be `type`
+type WithId<T> = T & { id: string };           // intersection / mapped / conditional — `type`
+```
+
+Rules of thumb:
+
+- **`interface`** for object shapes you extend, implement, or expose as a public API — cleaner extends, better error messages, declaration merging.
+- **`type`** for anything `interface` can't express: unions, intersections, tuples, mapped/conditional, primitives, function types.
+- Plain object needing neither? Either works — pick one and stay consistent. (Declaration merging is `interface`-only; a feature for public types, a footgun for app types.)
+
+### `readonly` + inline JSDoc
+
+Mark properties immutable-after-construction with `readonly`; put JSDoc on the *individual member* (e.g. `@internal` to hide one field), not the whole interface.
+
+```ts
+interface BuiltGuardrail {
+  readonly name: string;
+  readonly strategy: "block" | "redact" | "warn";
+  /** @internal */ readonly _config: Record<string, unknown>;
+}
 ```
 
 ---
@@ -269,6 +343,8 @@ const cfg = { model: "gpt-4o" } satisfies LLMConfig;
 - Wrap derived/intersection types in `Prettify` so consumers see a clean object, not `A & B & {...}`.
 - `satisfies` when you want validation *and* the narrow inferred type; `: Type` only when you want to widen.
 - Discriminated unions + `assertNever` for any fixed set of cases — the compiler then forces you to handle all of them.
+- Intersect shared fields into a discriminated union (`Shared & (A | B)`) so every variant carries them and narrowing still works.
+- `interface` for extendable object shapes; `type` for unions/intersections/mapped types. Default a generic param to keep the loose case simple while allowing precision.
 - Bound recursive types with a tuple-counter; unbounded recursion errors with "type instantiation is excessively deep".
 - `unknown` + a type guard at every boundary (API, JSON, tool output); avoid `any`.
 - Reach for template-literal types sparingly — powerful for SDK ergonomics, but slow to compile and hard to debug.
