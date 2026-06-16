@@ -12,7 +12,7 @@
 
 ## The two-layer split: SDK vs runtime
 
-The single most important decision: separate the **declarative authoring layer** (`sdk/`) from the **execution engine** (`runtime/`). The AI SDK is touched *only* in the runtime.
+The core structural split: separate the **declarative authoring layer** (`sdk/`) from the **execution engine** (`runtime/`). The AI SDK is touched *only* in the runtime.
 
 ```
 sdk/        fluent builders — Agent, Tool, Memory, Guardrail, Eval   (public)
@@ -79,7 +79,7 @@ Users write `.credential('anthropic')` — a *name*, never a key. The engine res
 
 ## Own the loop — wrap the AI SDK, don't delegate to it
 
-The AI SDK can run a tool loop itself (via `maxSteps`/auto-executed tools). This runtime **deliberately takes that over.** Tools are handed to the SDK *without* an `execute` function, so the model proposes calls but the runtime executes them.
+The AI SDK can run a tool loop itself (via `maxSteps`/auto-executed tools). This runtime takes that over: tools are handed to the SDK *without* an `execute` function, so the model proposes calls but the runtime executes them.
 
 ```ts
 // tool-adapter.ts — toAiSdkTools(): note there is NO `execute`
@@ -101,7 +101,7 @@ emit TurnStart
   → repeat until finish or max iterations
 ```
 
-Owning the loop is what unlocks everything else: per-batch concurrency, suspend mid-batch, HITL gates, abort checks between batches, custom persistence. You can't get those if the SDK drives the loop.
+Owning the loop is what enables per-batch concurrency, suspend mid-batch, HITL gates, abort checks between batches, and custom persistence — none of which are reachable when the SDK drives the loop.
 
 > `toolCallConcurrency` defaults to `1` (sequential); `Infinity` runs all executable calls in one turn in parallel. Each batch is `Promise.allSettled` so one failure doesn't sink the others.
 
@@ -132,7 +132,7 @@ export function createModel(config) {
 }
 ```
 
-Patterns worth copying:
+Key points:
 - **`require()` per provider, not top-level imports** — only the providers actually used get loaded; the rest stay out of the bundle.
 - **Credentials validated per provider** with a Zod schema before the SDK ever sees them — clear errors instead of opaque SDK failures.
 - **Injectable `fetch`** — a proxy-aware fetch is threaded into every provider (Node's `fetch` ignores `HTTP_PROXY`), so test/proxy setups work without per-call changes.
@@ -238,7 +238,7 @@ These all attach through the same builder/runtime seam rather than being bolted 
 
 ---
 
-## Design decisions worth stealing
+## Core design decisions
 
 - **Build artifacts are plain data.** Builders emit `Built*` objects with no behaviour; the runtime is the only thing that *runs*. Testable, serializable, swappable.
 - **Take over the agent loop.** Handing tools to the SDK without `execute` and looping yourself is what makes HITL, concurrency, and durable suspend possible. The SDK becomes a single-step `generate/stream` primitive.
