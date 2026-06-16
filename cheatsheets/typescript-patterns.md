@@ -189,6 +189,22 @@ interface BuiltGuardrail {
 }
 ```
 
+### Fluent builders — return `this`
+
+Methods that return the polymorphic `this` type chain together — and a subclass keeps its own type through the chain (unlike returning the concrete class name).
+
+```ts
+class Guardrail {
+  private guardType?: GuardrailType;
+  private strategyType?: GuardrailStrategy;
+
+  type(t: GuardrailType): this { this.guardType = t; return this; }
+  strategy(s: GuardrailStrategy): this { this.strategyType = s; return this; }
+}
+
+new Guardrail().type("pii").strategy("block");   // each step returns `this` → chainable
+```
+
 ---
 
 ## Advanced
