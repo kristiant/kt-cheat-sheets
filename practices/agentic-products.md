@@ -193,18 +193,42 @@ Serialization stores the id arrays per set, so after suspend/resume the history-
 
 ## Event bus + cancellation
 
-One `AgentEventBus` per agent, shared between the builder (`on()`) and the runtime (`emit()`), created when the SDK wires the runtime.
+A small **custom in-process pub/sub** — no `EventEmitter`, RxJS, or Node events. Typed, synchronous, ~160 lines:
+
+```ts
+class AgentEventBus {
+  private handlers = new Map<AgentEvent, Set<AgentEventHandler>>();
+  private controller = new AbortController();
+
+  on(event: AgentEvent, h: AgentEventHandler) { /* add to the Set */ }
+  off(event: AgentEvent, h: AgentEventHandler) { /* remove */ }
+  emit(data: AgentEventData) { this.handlers.get(data.type)?.forEach((h) => h(data)); }  // sync, inline
+}
+```
+
+- **Typed** — `AgentEvent` enum keys + a discriminated-union `AgentEventData` payload, so a handler narrows on `data.type`.
+- **Synchronous** — `emit()` calls handlers inline; no queue, no async dispatch, no persistence.
+- **Fresh bus per run** — `createRuntime()` news up a bus for each `generate()`/`stream()`/`resume()`; the agent stores subscriptions in its own `agentHandlers` map and copies them onto the new bus, so `on()`/`off()` and `abort()` always target the active run.
 
 ```ts
 agent.on(AgentEvent.ToolExecutionStart, ({ toolName, args }) => log(toolName, args));
 agent.on(AgentEvent.TurnEnd, ({ message, toolResults }) => { /* … */ });
 ```
 
-Lifecycle events: `AgentStart`/`AgentEnd`, `TurnStart`/`TurnEnd`, `ToolExecutionStart`/`ToolExecutionEnd`, `Error`. The bus also **holds the `AbortController`**, so `agent.abort()` and the event subscriptions always target the same run:
+Lifecycle events: `AgentStart`/`AgentEnd`, `TurnStart`/`TurnEnd`, `ToolExecutionStart`/`End`, `SubAgentStarted`/`Completed`, `Error`.
 
-- The signal is passed straight into `generateText`/`streamText` as `abortSignal` → in-flight HTTP cancels promptly.
-- `resetAbort(externalSignal?)` runs per-run: fresh controller, and forwards a caller-provided `AbortSignal` into the internal one (so external cancellation composes).
+**Internal consumers** (not just user code):
+- **Stream mode** subscribes to tool/sub-agent events and turns them into `StreamChunk`s on the HTTP stream — the bridge between the runtime and the wire.
+- **Tools** receive an `emitEvent` hook in their context so platform tools can publish.
+- **Sidecars don't subscribe** — they're scheduled imperatively (see [agentic-patterns.md](../cheatsheets/agentic-patterns.md) sidecars); they only `emit` an `Error` with a `source` on failure.
+
+The bus also **owns cancellation** (the `AbortController`), so `agent.abort()` and the subscriptions target the same run:
+
+- The signal goes straight into `generateText`/`streamText` as `abortSignal` → in-flight HTTP cancels promptly.
+- `resetAbort(externalSignal?)` runs per-run: fresh controller, forwards a caller-provided `AbortSignal` into the internal one (external cancellation composes); `createAbortScope()` gives resume flows their own scope.
 - The loop also checks `bus.isAborted` at batch boundaries.
+
+> `agent.middleware()` stores handlers but isn't wired to the bus yet — a placeholder for future guardrails/HITL composition.
 
 ---
 
