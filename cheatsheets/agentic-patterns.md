@@ -373,6 +373,58 @@ const { category } = await classifier.invoke(input);   // typed + schema-valid �
 
 ---
 
+## Sidecar LLM calls
+
+Extra LLM invocations that run *beside* the main loop, doing housekeeping (memory, summarisation, titles) the user never sees. The main loop answers the request; sidecars read the transcript and maintain notes the agent reads on later turns.
+
+```
+user message
+   ↓
+main loop  (generateText/streamText + tools)   ← the agent, user-facing
+   ↓ after / during the run (background):
+   ├── observer    — summarise new transcript → memory log
+   ├── reflector   — compress the log when it grows too big
+   ├── episodic    — extract durable facts → embeddings / store
+   └── title       — generate a thread title
+```
+
+Each sidecar is its own `generateText()` with a **task-specific system prompt and no tools** — different rules than the chat agent ("extract durable observations", "don't repeat the existing log").
+
+| | Main agent | Sidecar |
+|---|---|---|
+| Purpose | answer the user, call tools | maintain memory / metadata |
+| User sees it? | yes | no |
+| Tools? | yes | usually none |
+| Blocks the response? | yes | often background |
+| Prompt | agent instructions | task-specific (observer / reflector / title) |
+
+### Observe → reflect → recall (the memory loop)
+
+- **Observer** — after a turn, reads the new transcript and writes durable bullets (`CRITICAL (14:30) User chose SQLite`); the agent reads these next turn as "your memory of this conversation."
+- **Reflector** — when the log exceeds a budget, a second pass drops/merges old bullets to keep it small.
+- **Renderer** — injects the current log into the next system prompt.
+
+```ts
+await generateText({                              // its own call — no tools, custom prompt
+  model,
+  system: "Extract durable observations about what happened and what's next.",
+  prompt: transcriptDelta + currentLogTail,
+});
+```
+
+### Running sidecars safely
+
+The non-obvious production concerns:
+
+- **Threshold-gated** — run the observer only when the unobserved transcript exceeds a budget (~500 tokens), the reflector only when the log exceeds a larger one (~4k). Don't pay per turn.
+- **Background, tracked** — fire-and-forget so streaming isn't blocked; a task tracker holds the promises and `flush()` awaits them on shutdown so nothing is lost.
+- **Locked per scope** — a per-conversation lock (skip if held) stops two observer/reflector runs racing on the same thread.
+- **Billed separately** — a separate token counter tracks sidecar usage apart from the user-facing turn; sidecars can also run a cheaper model.
+
+> Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`). See [practices/agentic-products.md](../practices/agentic-products.md).
+
+---
+
 ## Practical recipes
 
 **Tool agent with memory (most common starting point):**
