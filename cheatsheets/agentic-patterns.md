@@ -421,6 +421,41 @@ The non-obvious production concerns:
 - **Locked per scope** — a per-conversation lock (skip if held) stops two observer/reflector runs racing on the same thread.
 - **Billed separately** — a separate token counter tracks sidecar usage apart from the user-facing turn; sidecars can also run a cheaper model.
 
+### Lifecycle — post-turn batch jobs, not stream listeners
+
+Sidecars don't watch the token stream; they run after the turn is **saved**, gated by thresholds on persisted data.
+
+```
+end of turn → saveToMemory():
+  1. save new messages to DB
+  2. schedule observer    (background)
+  3. schedule reflector   (queued after observer, per thread)
+  4. schedule episodic    (waits for observer + reflector)
+  5. title                (background, parallel)
+```
+
+So the agent *this* turn reads memory written by **previous** turns' sidecars — the current turn's usually finish after the response is sent.
+
+### The observer cursor (a watermark)
+
+The trigger isn't "new observations" — it's new *messages* since a cursor. The cursor is a watermark on the **message stream**, not the observation log:
+
+```ts
+interface ObservationCursor {
+  observationScopeId: string;     // usually the threadId
+  lastObservedMessageId: string;  // last message handed to the observer
+  lastObservedAt: Date;
+}
+//  m1 → m2 → m3 → m4 → m5
+//                      ↑ cursor: everything ≤ m5 has been observed
+```
+
+- **Delta** = messages after the cursor, by keyset order `(createdAt, id) > (lastObservedAt, lastObservedMessageId)`. The *same* filter loads history for the main agent — older content is assumed captured in the observation log, so the prompt only carries messages since the cursor.
+- **Advances after every observer run** — to the last message in the delta, *even if the LLM wrote zero observations* — so messages are never re-processed.
+- Episodic memory keeps its **own** cursor over observation rows (`lastIndexedObservationId`) — a separate layer.
+
+One line: observer cursor = "last message summarised"; observation log = the summaries; episodic cursor = "last summary indexed into long-term memory."
+
 > Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`). See [practices/agentic-products.md](../practices/agentic-products.md).
 
 ---
