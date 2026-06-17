@@ -341,6 +341,31 @@ type InferType<S> = S extends Schema<infer T> ? T : never;
 
 > See [zod.md](zod.md) — one source of truth for runtime validation *and* static types.
 
+### Schema registry → key union + per-key type
+
+An `as const` map of schemas is one source of truth that yields, for free: the **union of its keys**, and a **generic type that maps each key to its inferred schema type**. Common for provider/credential maps, plugin registries, and event tables.
+
+```ts
+import { z } from "zod";
+
+const apiKey = z.object({ apiKey: z.string().optional() });
+
+const CREDENTIAL_SCHEMAS = {
+  openai: apiKey,
+  anthropic: apiKey,
+  "aws-bedrock": z.object({ region: z.string(), accessKeyId: z.string() }),
+} as const;                                            // `as const` keeps keys literal
+
+type ProviderId = keyof typeof CREDENTIAL_SCHEMAS;     // "openai" | "anthropic" | "aws-bedrock"
+
+// index the map by a key, then infer THAT schema's type
+type Credentials<P extends ProviderId> = z.infer<(typeof CREDENTIAL_SCHEMAS)[P]>;
+
+type BedrockCreds = Credentials<"aws-bedrock">;        // { region: string; accessKeyId: string }
+```
+
+It composes four things: `as const` (literal keys) → `keyof typeof` (the union) → indexed access `(typeof MAP)[P]` (the schema for one key) → `z.infer` (its type). Add a provider by adding a map entry — the union and the per-key types update automatically.
+
 ### Strip auto-managed fields for input DTOs
 
 Derive a "create input" type from an entity by `Omit`-ting the fields the system manages.
