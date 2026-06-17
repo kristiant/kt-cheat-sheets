@@ -165,6 +165,32 @@ const agent = createReactAgent({ llm, tools: [getWeather] });
 const out = await agent.invoke({ messages: [{ role: "user", content: "weather in Perth?" }] });
 ```
 
+### Deferred tools (lazy tool loading)
+
+With 50+ integrations, putting every tool definition in the prompt blows the context window — yet a conversation usually needs 1–2. **Deferred tools** stay registered but absent from the model's toolset until loaded on demand, via two meta-tools.
+
+```
+active toolset = always-on tools
+              + search_tools, load_tool          (controllers, always present)
+              + loaded deferred tools             (grows during the conversation)
+```
+
+Flow:
+
+1. Agent starts with only `search_tools` + `load_tool` (plus any always-on tools).
+2. Model calls `search_tools({ query: "github" })` → ranked `{ name, description, loaded }[]`.
+3. Model calls `load_tool({ toolName: "github_create_issue" })` → marked loaded.
+4. **Next turn** that tool joins the active set and becomes callable.
+
+Same tool shape, different *lifecycle* — register as deferred instead of always-on:
+
+```ts
+agent.tool(searchTool);            // always in the prompt
+agent.deferredTool(githubTool);    // searchable + load-on-demand, absent until used
+```
+
+> Loaded tools are rehydrated from message history, so the set survives suspend/resume. Keeps prompts small while exposing a large catalog — grounded in n8n's `@n8n/agents` (`runtime/deferred-tool-manager.ts`). See [practices/agentic-products.md](../practices/agentic-products.md).
+
 ### Multi-agent — supervisor
 
 A supervisor routes work to specialist agents and collects results (tool-based handoff).
