@@ -45,17 +45,28 @@ const ns = tpuf.namespace("documents");
 
 ## Write (upsert)
 
-Namespaces are created on first write. Rows carry an `id`, a `vector`, and any attributes:
+Namespaces are created on first write. A row is an `id` + a `vector` (the embedding) + **attributes — the row's real content and metadata**. A typical RAG row stores the chunk text *and* its embedding:
 
 ```ts
 await ns.write({
+  distance_metric: "cosine_distance",            // or "euclidean_squared" — set on first write
   upsert_rows: [
-    { id: 1, vector: [0.1, 0.2, 0.3], title: "Refund policy", category: "billing" },
-    { id: 2, vector: [0.4, 0.5, 0.6], title: "Shipping", category: "orders" },
+    {
+      id: "policy.pdf#chunk-0",
+      vector: await embed("Refunds are issued within 5 business days of approval."),
+      text: "Refunds are issued within 5 business days of approval.",   // the real content
+      source: "policy.pdf",
+      page: 3,
+    },
   ],
-  distance_metric: "cosine_distance",   // or "euclidean_squared" — set on first write
+  schema: {
+    text:   { type: "string", full_text_search: true },   // BM25 over the stored text
+    source: { type: "string", filterable: true },
+  },
 });
 ```
+
+> The **vector** is the embedding (for semantic ANN); the **attributes are the actual data** you store, filter on, and read back. **BM25 searches a string attribute (`text`), not the vector** — so you must store the real text to keyword-search or display it. Store both on the same row and you get hybrid search.
 
 - `id` is `string | number`. `vector` length must match across the namespace.
 - Re-writing an existing `id` upserts (replaces) it.
@@ -76,21 +87,21 @@ await ns.write({ patch_rows: [{ id: 3, category: "archived" }] }); // partial up
 
 ```ts
 const res = await ns.query({
-  rank_by: ["vector", "ANN", [0.1, 0.2, 0.3]],   // query embedding
+  rank_by: ["vector", "ANN", await embed("how long do refunds take?")],
   top_k: 10,
-  include_attributes: ["title", "category"],     // or true for all
-  filters: ["category", "Eq", "billing"],
+  include_attributes: ["text", "source"],        // or true for all
+  filters: ["source", "Eq", "policy.pdf"],
 });
-res.rows;   // [{ id, $dist, title, category }, ...]
+res.rows;   // [{ id, $dist, text, source }, ...]
 ```
 
 ### Full-text search (BM25)
 
 ```ts
 const res = await ns.query({
-  rank_by: ["title", "BM25", "quick refund"],    // [attribute, "BM25", query]
+  rank_by: ["text", "BM25", "refund window"],    // [attribute, "BM25", query]
   top_k: 10,
-  filters: ["category", "Eq", "billing"],
+  filters: ["source", "Eq", "policy.pdf"],
 });
 ```
 
