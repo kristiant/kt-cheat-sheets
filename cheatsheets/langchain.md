@@ -157,12 +157,14 @@ const res = await chain.invoke({ topic: "embeddings", words: 40 });
 console.log(res.content);
 ```
 
-### Dedent multi-line prompts (tagged template)
+### Dedent multi-line prompts — `context` (LangChain v1)
 
-A **tagged template literal** — `fn\`...\``, which calls `fn(strings, ...values)` — lets you write a long system prompt indented to match the code, then strip that indentation out of the final string. Cleaner than a plain template literal, which keeps the source indentation in the prompt.
+LangChain v1 exports a **`context`** tagged template for authoring prompts: write the prompt indented to match your code, and `context` strips the shared leading indentation, trims outer whitespace, and aligns any multi-line `${...}` values — returning a plain string.
 
 ```ts
-const SYSTEM_PROMPT = dedent`
+import { context } from "langchain";
+
+const SYSTEM_PROMPT = context`
   You are a rigorous, execution-focused agent.
 
   Rules:
@@ -171,7 +173,7 @@ const SYSTEM_PROMPT = dedent`
 `;   // → flush-left text, no leading code indentation
 ```
 
-`dedent` is a tiny helper (strip shared leading whitespace + trim) — write your own or use a package; some agent SDKs ship one under a name like `context`. A plain `` `...` `` template works too, but bakes the indentation into the string.
+It's a **tagged template literal**: `` context`...` `` desugars to `context(strings, ...values)`, so the function receives the static chunks and any interpolations. A plain `` `...` `` template works too, but bakes the source indentation into the string.
 
 ## Messages & chat history
 
