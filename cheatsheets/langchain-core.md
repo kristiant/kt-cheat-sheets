@@ -388,3 +388,70 @@ AIMessage.tool_calls[i]            model decided to call a tool
   → append ToolMessage to history
   → call model again
 ```
+
+---
+
+## Retrievers
+
+`BaseRetriever` is the only class — a `Runnable<string, DocumentInterface[]>`. Implement one method:
+
+```ts
+_getRelevantDocuments(query: string, callbacks?): Promise<DocumentInterface[]>;
+```
+
+`.invoke(query)` wraps it with retriever callbacks (`handleRetrieverStart`/`End`/`Error`) for tracing. Being a Runnable, it composes directly in LCEL:
+
+```ts
+const chain = retriever.pipe(formatDocs).pipe(prompt).pipe(model);
+```
+
+**`BaseDocumentCompressor`** (`document_compressors/`) — takes `(documents, query)` → a filtered/compressed subset. Used by `ContextualCompressionRetriever` (in the `langchain` package, not core) to post-process docs before returning.
+
+---
+
+## Output parsers
+
+### Class hierarchy
+
+```
+Runnable<string | BaseMessage, T>
+ └─ BaseLLMOutputParser<T>            raw generations input
+     └─ BaseOutputParser<T>          string input (most common)
+         └─ BaseTransformOutputParser<T>             supports streaming
+             └─ BaseCumulativeTransformOutputParser<T>   streaming + accumulation/diff
+```
+
+- **`BaseLLMOutputParser`** — implement `parseResult(generations[])` (raw LLM generations).
+- **`BaseOutputParser`** — simpler: implement `parse(text)`; the base extracts text for you. Also `getFormatInstructions()` — a string injected into the prompt telling the model what format to produce.
+- **`BaseTransformOutputParser`** — overrides `.transform()` to parse a streaming generator chunk-by-chunk (e.g. `StringOutputParser`). The cumulative variant adds **diff mode** — emits JSON-patch ops between successive parsed states for incremental structured streaming.
+
+### Concrete parsers
+
+| Parser | Output | Notes |
+|---|---|---|
+| `StringOutputParser` | `string` | extracts `.content` — the common end-of-chain parser |
+| `JsonOutputParser<T>` | `T` | JSON or markdown-fenced JSON; streams via `parsePartialJson` |
+| `StructuredOutputParser` | Zod-inferred | validates against Zod; `getFormatInstructions()` embeds the schema |
+| `JsonMarkdownStructuredOutputParser` | Zod-inferred | same, expects a ` ```json ` fenced block |
+| `XMLOutputParser` | `XMLResult` | streaming-capable |
+| `CommaSeparatedListOutputParser` | `string[]` | splits on commas |
+| `NumberedListOutputParser` | `string[]` | splits numbered lists |
+
+### `OutputParserException` (`base.ts`)
+
+Thrown on parse failure. Fields: `llmOutput` (the raw string that failed), `observation` (explanation, feedable back to the model), `sendToLLM` (if true, agents retry with the error context injected).
+
+### `openai_tools/` — tool-call parsers
+
+Wired internally by `withStructuredOutput()`, rarely used directly: `JsonOutputToolsParser` (→ `ParsedToolCall[]` from `AIMessage.tool_calls`), `JsonOutputKeyToolsParser` (extracts one named tool's args, validates against Zod).
+
+### How they connect
+
+```ts
+prompt.pipe(model)                               // → AIMessage
+  .pipe(new StringOutputParser());               // → string
+  // .pipe(new JsonOutputParser<MyType>())       // → MyType (no validation)
+  // .pipe(StructuredOutputParser.fromZodSchema(s)) // → validated MyType
+```
+
+`StructuredOutputParser` is the only one that also **modifies the prompt** (via `getFormatInstructions()`) — so it's used with `.withStructuredOutput()` or injected into the prompt manually.
