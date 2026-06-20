@@ -184,6 +184,8 @@ pluck({ id: 1, name: "x" }, "name");   // return type: string, inferred
 
 **Naming:** the `T` prefix marks a *type parameter*, so `TTools` is just `T` + `Tools` ("the Tools type slot") — not a double-T rule. Likewise `TStructure`, `TRole`. It separates a generic placeholder from a normal type name, which matters when several appear together: `<TStructure, TTools, TRole>`. `T` alone is the default single param; `K` is the convention for a key.
 
+**`$` prefix:** a convention (not syntax — `$` is a valid identifier char) marking a type as *internal type-level machinery* — inference/utility types that compute other types and erase at runtime, vs domain types you actually instantiate. E.g. `$InferToolCalls<S>`, Zod 4's `$ZodType`. Like `I` for interfaces or `_` for private: it keeps the "wrenches" (type calculators) visually separate from the "products" (the types you use).
+
 ### Optional generic with a default
 
 A defaulted type param is a precision *hook*: the loose default keeps most call sites simple, while callers who know the shape opt into stricter typing — without changing the base type.
