@@ -239,3 +239,79 @@ ChatPromptTemplate.fromMessages([...])
 ```
 
 Prompts are the entry point of every LCEL chain — they validate variables at construction and produce typed `PromptValue`s that models consume.
+
+---
+
+## Language models
+
+### Class hierarchy
+
+```
+Runnable
+ └─ BaseLangChain
+     └─ BaseLanguageModel
+         ├─ BaseLLM         text in → text out (legacy)
+         └─ BaseChatModel   messages in → message out
+             └─ SimpleChatModel   convenience subclass
+```
+
+`BaseLLM` is legacy; everything modern uses `BaseChatModel`.
+
+### Input — `BaseLanguageModelInput`
+
+```ts
+type BaseLanguageModelInput =
+  | BasePromptValueInterface   // from a prompt template
+  | string                     // convenience
+  | BaseMessageLike[];         // array of messages
+```
+
+All three are normalised to `BaseMessage[]` internally before `_generate`.
+
+### `BaseChatModel` — what a custom provider implements
+
+Two abstract methods; the base class layers `invoke`/`stream`/`batch`, caching, callbacks, and retry on top:
+
+- `_generate(messages, options, runManager)` — single call
+- `_streamResponseChunks(...)` — streaming; yields `AsyncGenerator<ChatGenerationChunk>`
+
+`SimpleChatModel` simplifies further — implement just `_call(messages) → string`.
+
+### `bindTools()`
+
+Binds tool definitions to the model, returning a new runnable. Each provider implements it differently; output is still an `AIMessage`, now with `tool_calls` populated.
+
+```ts
+const modelWithTools = model.bindTools([tool1, tool2]);
+```
+
+### `withStructuredOutput()`
+
+High-level structured output — give it a Zod/JSON schema, get a runnable returning a typed object. Internally wires `bindTools` + a parsing runnable.
+
+```ts
+const structured = model.withStructuredOutput(z.object({ name: z.string() }));
+await structured.invoke("What is your name?");   // → { name: "..." }
+```
+
+- `method`: `"functionCalling"` (default) · `"jsonMode"` (model returns JSON, parsed) · `"jsonSchema"` (provider-native schema mode, OpenAI/Gemini).
+- `includeRaw: true` → `{ raw: AIMessage, parsed: T }` when you need both.
+
+### Other model internals
+
+- **Caching** — `new ChatOpenAI({ cache: new InMemoryCache() })` (or `cache: true` for the global singleton). Key = prompt content + model params; hits skip the API call.
+- **`outputVersion`** — `AIMessage.content` format: `"v0"` (default, provider-raw) vs `"v1"` (normalised `ContentBlock[]`). Set via constructor or `LC_OUTPUT_VERSION`. Matters for provider-agnostic code that inspects content.
+- **Call options** (`BaseChatModelCallOptions`) — per-call: `tool_choice` (`"auto"`/`"any"`/`"none"`/name), `stop: string[]`, `signal: AbortSignal`, `timeout`.
+- **Streaming internals** — `_streamResponseChunks` is the legacy bridge; the newer protocol emits typed `ChatModelStreamEvent`s (`content_block_start`/`_delta`/`_stop`, matching Anthropic's model). A `ReplayBuffer` lets multiple consumers iterate the same stream.
+
+### Mental model
+
+```ts
+prompt.pipe(model).pipe(outputParser);
+// model.invoke():
+//   _generateCached()   → cache hit? return early
+//   _generateUncached() → _generate() (or bridges _streamResponseChunks)
+//   → wraps result in AIMessage, fires callbacks
+```
+
+Building a custom provider = implement `_generate` + `_streamResponseChunks` + `bindTools`; everything else is inherited.
