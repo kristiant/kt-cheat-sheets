@@ -158,3 +158,84 @@ Less common than `RunnableBranch` (condition-based routing); use for explicit ke
 ### RunnableWithMessageHistory — deprecated
 
 Wrapped a chain to auto-load/save chat history per session via a `getMessageHistory` callback keyed by session id. **Deprecated** — LangGraph's checkpointer persistence replaces it. Recognise it in older code; don't reach for it in new.
+
+---
+
+## Prompts
+
+`BasePromptTemplate` (`base.ts`) extends `Runnable` — all prompts are `Runnable<InputValues, PromptValue>`. Invoking a prompt yields a **`PromptValue`** (not a string or messages directly), convertible via `.toString()` / `.toChatMessages()`. Shared fields: `inputVariables`, `partialVariables`, `outputParser`.
+
+### `PromptTemplate` — string prompts (LLMs)
+
+```ts
+const p = PromptTemplate.fromTemplate("Tell me about {topic}");
+// inputVariables inferred as ["topic"] from the template
+```
+
+Supports `f-string` (default, `{var}`) and `mustache` (`{{var}}`) formats.
+
+### `ChatPromptTemplate` — chat models (the common one)
+
+```ts
+ChatPromptTemplate.fromMessages([
+  ["system", "You are {role}"],
+  ["human", "{input}"],
+]);
+```
+
+Each tuple is coerced into a `*MessagePromptTemplate`. Use the static `fromMessages` — not the constructor.
+
+### Per-role message templates
+
+`HumanMessagePromptTemplate`, `AIMessagePromptTemplate`, `SystemMessagePromptTemplate`, `ChatMessagePromptTemplate` (arbitrary role) — used inside `fromMessages` or standalone.
+
+### `MessagesPlaceholder` — inject a message array
+
+A named slot for a `BaseMessage[]` — essential for chat history:
+
+```ts
+ChatPromptTemplate.fromMessages([
+  ["system", "You are helpful"],
+  new MessagesPlaceholder("history"),     // optional: true → inject nothing if missing
+  ["human", "{input}"],
+]);
+// invoke with { history: BaseMessage[], input: "..." }
+```
+
+### `partial()` — pre-fill variables
+
+```ts
+const partial = await prompt.partial({ role: "an expert chef" });
+// now only needs { input } at invoke time
+```
+
+`partialVariables` can be **async functions**, evaluated at invoke time — handy for dynamic values (current date, feature flags).
+
+### Few-shot — `FewShotPromptTemplate` / `FewShotChatMessagePromptTemplate`
+
+Injects examples, either a static `examples` list or a dynamic `exampleSelector` (e.g. semantic-similarity selection):
+
+```ts
+new FewShotPromptTemplate({
+  examples,
+  examplePrompt,                  // PromptTemplate formatting each example
+  suffix: "Q: {input}\nA:",
+  inputVariables: ["input"],
+});
+```
+
+### Other
+
+- **`PipelinePromptTemplate`** — compose prompts; each sub-prompt's output feeds a variable into the final prompt. Niche, for reusable prompt parts.
+- **`StructuredPrompt`** — a `ChatPromptTemplate` carrying a JSON schema; piped to a model it auto-wires `.withStructuredOutput()`, so the schema travels with the prompt.
+- **Template formats** — `f-string` (default, `{var}`) and `mustache` (`{{var}}`, supports loops/conditionals).
+
+### Mental model
+
+```ts
+ChatPromptTemplate.fromMessages([...])
+  .pipe(chatModel)        // PromptValue → AIMessage
+  .pipe(outputParser);    // AIMessage → structured output
+```
+
+Prompts are the entry point of every LCEL chain — they validate variables at construction and produce typed `PromptValue`s that models consume.
