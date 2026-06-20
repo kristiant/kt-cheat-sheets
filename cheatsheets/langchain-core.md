@@ -432,7 +432,7 @@ Runnable<string | BaseMessage, T>
 | `StringOutputParser` | `string` | extracts `.content` — the common end-of-chain parser |
 | `JsonOutputParser<T>` | `T` | JSON or markdown-fenced JSON; streams via `parsePartialJson` |
 | `StructuredOutputParser` | Zod-inferred | validates against Zod; `getFormatInstructions()` embeds the schema |
-| `JsonMarkdownStructuredOutputParser` | Zod-inferred | same, expects a ` ```json ` fenced block |
+| `JsonMarkdownStructuredOutputParser` | Zod-inferred | same, but expects the JSON inside a fenced markdown code block |
 | `XMLOutputParser` | `XMLResult` | streaming-capable |
 | `CommaSeparatedListOutputParser` | `string[]` | splits on commas |
 | `NumberedListOutputParser` | `string[]` | splits numbered lists |
