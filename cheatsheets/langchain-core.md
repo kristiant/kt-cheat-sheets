@@ -315,3 +315,76 @@ prompt.pipe(model).pipe(outputParser);
 ```
 
 Building a custom provider = implement `_generate` + `_streamResponseChunks` + `bindTools`; everything else is inherited.
+
+---
+
+## Tools
+
+### Class hierarchy
+
+```
+BaseLangChain (extends Runnable)
+ └─ StructuredTool          base for all tools
+     └─ Tool                string-only input (legacy convenience)
+         ├─ DynamicTool            string input, runtime fn
+         └─ DynamicStructuredTool  schema input, runtime fn
+```
+
+### `StructuredTool` — the base
+
+Provide three members + one method:
+
+```ts
+abstract name: string;
+abstract description: string;          // shown to the model to decide WHEN to call
+abstract schema: ZodObject | JSONSchema;
+abstract _call(arg, runManager?, config?): Promise<ToolOutput>;
+```
+
+It's a `Runnable`. Invoked with a `ToolCall` (from `AIMessage.tool_calls`), it auto-wraps the result in a `ToolMessage` with the matching `tool_call_id`.
+
+### `tool()` — the idiomatic factory
+
+```ts
+const myTool = tool(
+  async ({ city }) => `Weather in ${city}: sunny`,
+  { name: "get_weather", description: "Gets weather for a city", schema: z.object({ city: z.string() }) },
+);   // → DynamicStructuredTool (Zod or JSON schema)
+```
+
+### `responseFormat`
+
+- `"content"` (default) — the return value becomes `ToolMessage.content`.
+- `"content_and_artifact"` — the tool returns `[content, artifact]`; `content` goes in the message (seen by the model), `artifact` is stored on `ToolMessage.artifact` (**not** sent to the model — for large data like images/DataFrames).
+
+### `returnDirect`
+
+`returnDirect: true` tells the executor to stop the loop and return the tool output straight to the user, skipping the model's final summarisation.
+
+### `ToolRuntime` — LangGraph injection
+
+A second parameter typed `ToolRuntime` is injected automatically at call time — the bridge between tools and LangGraph agents, no wiring beyond the annotation:
+
+```ts
+tool(async ({ name }, runtime: ToolRuntime<typeof stateSchema>) => {
+  runtime.state;       // current graph state
+  runtime.toolCallId;  // id of the triggering call
+  runtime.store;       // persistent BaseStore
+  runtime.writer?.("..."); // stream mid-execution
+}, { name: "...", schema, stateSchema });
+```
+
+### Other
+
+- **`BaseToolkit`** — groups related tools (`abstract tools`, `getTools()`); subclass to bundle (e.g. `SQLToolkit`).
+- **`ToolReturnType`** (conditional type) — `.invoke()` returns a `ToolMessage` when called with a `ToolCall`, or the tool's native output when called with raw args. Why agent loops get back `ToolMessage[]` ready to append.
+
+### Mental model — the agent tool loop
+
+```
+AIMessage.tool_calls[i]            model decided to call a tool
+  → tool.invoke(toolCall)          StructuredTool detects ToolCall input:
+       validate args via schema → _call(parsedArgs) → wrap → ToolMessage(tool_call_id)
+  → append ToolMessage to history
+  → call model again
+```
