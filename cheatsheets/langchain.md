@@ -157,6 +157,22 @@ const res = await chain.invoke({ topic: "embeddings", words: 40 });
 console.log(res.content);
 ```
 
+### Dedent multi-line prompts (tagged template)
+
+A **tagged template literal** — `fn\`...\``, which calls `fn(strings, ...values)` — lets you write a long system prompt indented to match the code, then strip that indentation out of the final string. Cleaner than a plain template literal, which keeps the source indentation in the prompt.
+
+```ts
+const SYSTEM_PROMPT = dedent`
+  You are a rigorous, execution-focused agent.
+
+  Rules:
+  - Prefer evidence over assumptions.
+  - State uncertainty explicitly.
+`;   // → flush-left text, no leading code indentation
+```
+
+`dedent` is a tiny helper (strip shared leading whitespace + trim) — write your own or use a package; some agent SDKs ship one under a name like `context`. A plain `` `...` `` template works too, but bakes the indentation into the string.
+
 ## Messages & chat history
 
 Models speak in **message objects**, not strings. The `["system", "..."]` tuple is shorthand; the classes give you control and are what you store and replay:
