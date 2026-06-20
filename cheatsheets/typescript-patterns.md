@@ -155,11 +155,15 @@ type Role = (typeof ROLES)[number];                  // "admin" | "user" | "gues
 ### Utility types
 
 ```ts
+type Draft      = Partial<User>;             // every field optional (T, all `?`) — patch/config shapes
+type Full       = Required<User>;            // every field required (drops all `?`)
 type PublicUser = Omit<User, "passwordHash">;
 type Creds      = Pick<User, "email" | "passwordHash">;
 type ById       = Record<string, User>;
 type Resolved   = Awaited<ReturnType<typeof fetchUser>>;
 ```
+
+`Partial<T>` is the go-to when a value should specify *only the keys it cares about* — e.g. `Partial<Record<MessageType, ContentBlock>>` lets you constrain a couple of roles and omit the rest.
 
 Small custom utilities worth keeping around:
 
