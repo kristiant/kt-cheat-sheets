@@ -84,9 +84,7 @@ import { RemoveMessage } from "@langchain/core/messages";
 return { messages: [new RemoveMessage({ id: staleMessageId })] };   // graph reducer drops it
 ```
 
----
-
-## Mental model
+### Mental model
 
 ```
 human sends      → HumanMessage
@@ -97,3 +95,66 @@ model responds   → AIMessage
 ```
 
 A conversation is just `BaseMessage[]` growing over time; streaming yields `*Chunk`s that merge back into those messages.
+
+---
+
+## Runnables
+
+`Runnable<RunInput, RunOutput>` (`base.ts`) is the base abstraction **every** LangChain component implements — models, prompts, parsers, retrievers, chains. Three execution methods:
+
+| Method | Description |
+|---|---|
+| `.invoke(input)` | single call → single output |
+| `.batch(inputs[])` | parallel calls → array of outputs |
+| `.stream(input)` | async generator of chunks |
+
+### `.pipe()` — LCEL composition
+
+Chains runnables sequentially — the output of one becomes the input of the next. Returns a `RunnableSequence`, itself a Runnable, so chains nest freely.
+
+```ts
+const chain = prompt.pipe(model).pipe(outputParser);
+// RunnableSequence<PromptInput, ParsedOutput>
+```
+
+### RunnableAssign — augment a dict (vs `pipe` replacing it)
+
+`.pipe()` *replaces* the value at each step; `RunnableAssign` *merges* new keys into the existing dict. The idiomatic entry point is the static `RunnablePassthrough.assign(...)` (sugar for `RunnablePassthrough` + `RunnableMap`):
+
+```ts
+const chain = RunnablePassthrough.assign({
+  summary: summaryChain,      // both run on the ORIGINAL input, in parallel
+  sentiment: sentimentChain,  // results merged back under these keys
+});
+// → { ...input, summary, sentiment }
+```
+
+Use it to *enrich* a dict as it flows — retrieved context, computed fields, intermediate results later steps need — without losing earlier keys. (See `pipe` vs `assign` in [langchain.md](langchain.md).)
+
+### RunnableEach — map over a list
+
+`.map()` returns a `RunnableEach` that applies a runnable to each element of an array input.
+
+```ts
+const chain = someRunnable.map();   // T[] → U[]
+```
+
+### RunnablePick — pluck keys (inverse of Assign)
+
+```ts
+const pick = new RunnablePick(["name", "city"]);   // or someRunnable.pick(["name", "city"])
+// { name: "Alice", city: "NY", age: 30 } → { name: "Alice", city: "NY" }
+```
+
+### RouterRunnable — key-based dispatch
+
+```ts
+const router = new RouterRunnable({ runnables: { upper, reverse } });
+router.invoke({ key: "upper", input: "hello" });   // → "HELLO"
+```
+
+Less common than `RunnableBranch` (condition-based routing); use for explicit key dispatch.
+
+### RunnableWithMessageHistory — deprecated
+
+Wrapped a chain to auto-load/save chat history per session via a `getMessageHistory` callback keyed by session id. **Deprecated** — LangGraph's checkpointer persistence replaces it. Recognise it in older code; don't reach for it in new.
