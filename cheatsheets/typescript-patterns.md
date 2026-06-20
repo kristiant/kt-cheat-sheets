@@ -182,6 +182,8 @@ function pluck<T, K extends keyof T>(obj: T, key: K): T[K] {
 pluck({ id: 1, name: "x" }, "name");   // return type: string, inferred
 ```
 
+**Naming:** the `T` prefix marks a *type parameter*, so `TTools` is just `T` + `Tools` ("the Tools type slot") — not a double-T rule. Likewise `TStructure`, `TRole`. It separates a generic placeholder from a normal type name, which matters when several appear together: `<TStructure, TTools, TRole>`. `T` alone is the default single param; `K` is the convention for a key.
+
 ### Optional generic with a default
 
 A defaulted type param is a precision *hook*: the loose default keeps most call sites simple, while callers who know the shape opt into stricter typing — without changing the base type.
