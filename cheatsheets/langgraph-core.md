@@ -123,3 +123,82 @@ StateGraph (builder)
 ```
 
 Each superstep: **identify** nodes to run (from last step's edges) → **run** them (parallel) → **merge** returns into state via channel reducers → **evaluate** outgoing edges → repeat until `END`.
+
+---
+
+## State management
+
+### Channels — the underlying primitive
+
+State isn't a plain object — **every key is a channel**. A channel controls how it accepts updates (`update(values[])`), what it returns (`get()`), and how it serialises (`checkpoint()` / `fromCheckpoint()`).
+
+| Channel | Behaviour | Created by |
+|---|---|---|
+| `LastValue` | most recent write; **errors if >1 writer in a step** | `Annotation<T>` (no reducer) |
+| `BinaryOperatorAggregate` | folds updates with a reducer | `Annotation<T>({ reducer })` |
+| `EphemeralValue` | holds a value for one step, then auto-clears | internal / `Topic` |
+| `Topic` | pub/sub — collects all values published in a step into an array, optional dedupe | internal / advanced |
+
+(Annotation basics — `.State`/`.Update` slots, last-write-wins vs reducer — are in [Graph primitives](#graph-primitives) above.) A third slot, `typeof MyState.Node`, types node functions.
+
+### StateSchema — the Zod alternative
+
+```ts
+import { StateSchema, ReducedValue, UntrackedValue } from "@langchain/langgraph";
+
+const MyState = new StateSchema({
+  count: z.number().default(0),                 // → LastValue
+  messages: ReducedValue(z.array(...), reducer), // → BinaryOperatorAggregate
+  scratch: UntrackedValue(z.string()),          // not checkpointed
+});
+```
+
+Same `.State` / `.Update` / `.Node` slots as `AnnotationRoot`; converts to channels via `getChannels()`. Adds Zod validation on state values.
+
+### `messagesStateReducer` in detail
+
+Why `MessagesAnnotation` is more than array-append — it:
+
+1. Normalises both sides to `BaseMessage[]`, assigning missing ids.
+2. **Replace by id** — a right-side message with an existing id replaces it (streaming updates).
+3. **Delete by id** — `RemoveMessage({ id })` removes that message.
+4. **Delete all** — `RemoveMessage({ id: REMOVE_ALL_MESSAGES })` wipes everything before it.
+5. **Append** — genuinely new ids are appended.
+
+### Input / output schemas — filtering state
+
+```ts
+new StateGraph({ state: FullAnnotation, input: InputAnnotation, output: OutputAnnotation });
+```
+
+Full state (all channels) runs internally; `input` is merged at `START`, `output` projected at `END` — exposing only a subset externally.
+
+### Private / untracked state
+
+`UntrackedValue` (StateSchema) → an `UntrackedValueChannel`: present during execution but **not persisted to checkpoints** — for ephemeral working memory, caches, or data too large to serialise. Annotation-based state has no direct equivalent; stash large data in a `ToolMessage.artifact` instead.
+
+### How state flows through Pregel
+
+```
+each superstep:
+  1. nodes run → return partial updates  { messages: [...], topic: "foo" }
+  2. Pregel groups all updates per channel across the nodes that ran
+  3. channel.update(updatesForThisKey[]):
+       LastValue                → throws if >1 writer; stores the value
+       BinaryOperatorAggregate  → folds all updates via the reducer
+       EphemeralValue           → stores, clears next step
+  4. new state = channel.get() per key
+  5. checkpoint saved (if a checkpointer is configured)
+  6. conditional edges evaluated on the NEW state → next nodes
+```
+
+### Mental model
+
+```
+Node A returns { messages: [msg1] }
+Node B returns { messages: [msg2] }     ← same step, ran in parallel
+  messagesStateReducer([msg1], [msg2]) → [msg1, msg2]   (reducer accumulates)
+  a LastValue channel would THROW here  (two writers in one step)
+```
+
+State is never passed by reference — each step produces a **new immutable snapshot**. Checkpointing saves these snapshots, enabling time-travel and resumption.
