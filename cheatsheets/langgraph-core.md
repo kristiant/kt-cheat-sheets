@@ -202,3 +202,106 @@ Node B returns { messages: [msg2] }     ← same step, ran in parallel
 ```
 
 State is never passed by reference — each step produces a **new immutable snapshot**. Checkpointing saves these snapshots, enabling time-travel and resumption.
+
+---
+
+## Control flow
+
+Conditional edges (in [Graph primitives](#graph-primitives)) are the basic router; returning an **array** fans out (multiple nodes run next step). The rest of the toolkit:
+
+### `Command` — route + update in one return
+
+A node can return a `Command` that both updates state and routes — no separate conditional edge:
+
+```ts
+const nodeA = async (state) =>
+  new Command({
+    update: { foo: "updated" },                       // state update
+    goto: Math.random() > 0.5 ? "nodeB" : "nodeC",    // routing (name | Send | array)
+  });
+graph.addNode("nodeA", nodeA, { ends: ["nodeB", "nodeC"] });
+```
+
+Fields: `update`, `goto`, `resume` (for `interrupt()`), `graph` (use `Command.PARENT` to route in the parent from a subgraph). Tools can return a `Command` directly (`lc_direct_tool_output`), so **a tool can drive agent routing**.
+
+### `interrupt()` — human-in-the-loop pause
+
+```ts
+const reviewNode = async (state) => {
+  const decision = interrupt({ question: "Approve?", data: state.plan });
+  // PAUSES here — graph suspends, checkpoint saved
+  return decision === "approve" ? { approved: true } : { approved: false };
+};
+```
+
+How it works: `interrupt(value)` checks the scratchpad for a stored resume value; if none, it **throws `GraphInterrupt`** (caught by Pregel, not you) → graph suspends with a pending interrupt. Re-invoke with `Command({ resume: "approve" })` → graph **replays to the interrupt point**, `interrupt()` now returns the resume value, execution continues.
+
+- Requires a checkpointer. **Don't wrap `interrupt()` in try/catch** — `GraphInterrupt` must propagate.
+- Multiple `interrupt()` calls in one node work — handled sequentially across invocations.
+
+### `interruptBefore` / `interruptAfter` — static interrupts
+
+Declared at compile time, no code changes — pause to inspect:
+
+```ts
+graph.compile({ interruptBefore: ["tools"], interruptAfter: ["agent"] });
+```
+
+Resume by re-invoking (or `Command({ resume: undefined })`) — no resume value needed; these just pause, they're not awaiting input.
+
+### `Send` — dynamic fan-out / map-reduce
+
+```ts
+const continueToJokes = (state) =>
+  state.subjects.map((subject) => new Send("generate_joke", { subject }));
+
+graph.addConditionalEdges(START, continueToJokes);
+graph.addEdge("generate_joke", END);
+```
+
+`Send(node, args)` spawns a separate, parallel invocation of `node` with a **custom input** (not the full state). Results merge back via the collecting channel's reducer. Unlike a string route, `Send` passes arbitrary per-invocation input — the map-reduce primitive.
+
+### `Overwrite` — bypass a reducer
+
+Force-replace a reducer-channel value instead of accumulating:
+
+```ts
+return { messages: new Overwrite(["replacement"]) };   // ignores the reducer
+```
+
+One `Overwrite` per channel per superstep — more throws `InvalidUpdateError`.
+
+### Node policies — retry / timeout / error handling
+
+```ts
+graph.addNode("agent", agentFn, {
+  retryPolicy: { maxAttempts: 3, initialInterval: 500, backoffFactor: 2,
+    retryOn: (e) => e instanceof RateLimitError },
+  timeout: 30_000,
+  errorHandler: (state, { error }) => ({ lastError: error.message }),  // record + continue
+});
+```
+
+`errorHandler` runs *instead of* propagating — record the failure in state and carry on. Graph-wide defaults via `setNodeDefaults()`; per-node overrides win.
+
+### Subgraphs
+
+A compiled graph is a Runnable, so it's a valid node:
+
+```ts
+const subgraph = new StateGraph(SubState).addNode(/* … */).compile();
+graph.addNode("sub", subgraph);
+```
+
+State keys must **overlap** for values to pass through. Route from a subgraph back to the parent with `Command({ goto: "parentNode", graph: Command.PARENT })`.
+
+### Mental model — pick the mechanism
+
+| Need | Use |
+|---|---|
+| Fixed next step | `addEdge(a, b)` |
+| State-based routing | `addConditionalEdges(a, routerFn)` |
+| Route **and** update together | return `new Command({ update, goto })` |
+| Pause for human input | `interrupt(q)` → resume via `Command({ resume })` |
+| Parallel invocations / map-reduce | return `[new Send("node", args1), ...]` |
+| Force-replace a reducer value | return `{ key: new Overwrite(value) }` |
