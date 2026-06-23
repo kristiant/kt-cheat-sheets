@@ -105,6 +105,47 @@ services:
     command: npm run dev
 ```
 
+### Develop watch (live sync / rebuild)
+
+The modern alternative to bind-mounting — `docker compose watch` reacts to file changes per-path, without restarting by hand:
+
+```yaml
+services:
+  web:
+    build: .
+    develop:
+      watch:
+        - action: sync          # copy changed files into the container (hot-reload)
+          path: ./src
+          target: /app/src
+        - action: sync+restart  # sync, then restart the service (config changes)
+          path: ./config.yaml
+          target: /app/config.yaml
+        - action: rebuild       # rebuild the image (e.g. package.json changed)
+          path: ./package.json
+```
+
+```bash
+docker compose watch
+```
+
+### Networks & aliases
+
+All services share one default network where **service names are DNS hostnames**. Define custom networks to segment (e.g. frontend/backend):
+
+```yaml
+services:
+  web: { build: ., networks: [frontend] }
+  api: { build: ./api, networks: [frontend, backend] }
+  db:  { image: postgres, networks: [backend] }   # web cannot reach db
+networks:
+  frontend: {}
+  backend: {}
+```
+
+- **aliases** — extra DNS names for a service: `networks: { backend: { aliases: [postgres-primary] } }`.
+- **links** (legacy) — predates Compose networks; unnecessary now since service names already resolve.
+
 ### Override files (dev vs prod)
 
 Compose auto-merges `compose.override.yaml` on top of `compose.yaml`. Keep prod base clean, layer dev-only tweaks in the override:
