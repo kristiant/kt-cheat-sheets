@@ -305,3 +305,138 @@ State keys must **overlap** for values to pass through. Route from a subgraph ba
 | Pause for human input | `interrupt(q)` → resume via `Command({ resume })` |
 | Parallel invocations / map-reduce | return `[new Send("node", args1), ...]` |
 | Force-replace a reducer value | return `{ key: new Overwrite(value) }` |
+
+---
+
+## Persistence & memory
+
+### Checkpoint — what gets saved
+
+A snapshot of all channel values after each superstep:
+
+```ts
+interface Checkpoint {
+  v: number;                                  // format version
+  id: string;                                 // uuid6 — sortable by time
+  ts: string;                                 // ISO timestamp
+  channel_values: Record<string, unknown>;    // full state
+  channel_versions: Record<string, number>;   // version per channel
+  versions_seen: Record<string, Record<string, number>>;  // per node → channel → version
+}
+```
+
+A `CheckpointTuple` wraps it with config, metadata, parent config, and **pending writes** (in-flight when the graph suspended).
+
+### `BaseCheckpointSaver`
+
+Four methods: `getTuple(config)`, `list(config, opts?)`, `put(config, checkpoint, metadata, versions)`, `putWrites(config, writes, taskId)`, `deleteThread(threadId)`.
+
+| Saver | Package | Use |
+|---|---|---|
+| `MemorySaver` | `@langchain/langgraph-checkpoint` | dev/testing only |
+| `SqliteSaver` | `…-checkpoint-sqlite` | local persistence |
+| `PostgresSaver` | `…-checkpoint-postgres` | production SQL |
+| `MongoDBSaver` | `…-checkpoint-mongodb` | production document |
+| `RedisSaver` | `…-checkpoint-redis` | production cache-backed |
+
+### Thread scoping — `thread_id`
+
+The checkpointer key. Same `thread_id` → shared history; different → isolated.
+
+```ts
+await app.invoke(input, { configurable: { thread_id: "user-123" } });  // continues that thread
+```
+
+`checkpoint_ns` further scopes to a subgraph within a thread.
+
+### Time-travel — `getState` / `getStateHistory` / `updateState`
+
+```ts
+const s = await app.getState({ configurable: { thread_id: "123" } });
+// s.values (channels) · s.next (nodes that would run) · s.tasks · s.metadata
+
+for await (const snap of app.getStateHistory({ configurable: { thread_id: "123" } })) { /* newest first */ }
+
+// fork: re-run from a past checkpoint
+await app.invoke(input, { configurable: { thread_id: "123", checkpoint_id: past.id } });
+
+// inject state manually (asNode = whose turn it looks like)
+await app.updateState({ configurable: { thread_id: "123" } }, { messages: [new HumanMessage("fix")] }, "agent");
+```
+
+### `BaseStore` — cross-thread / long-term memory
+
+Checkpoints are **per-thread**; `BaseStore` is shared across threads. Namespaces are hierarchical paths (folder-like):
+
+```ts
+await store.put(["memories", userId], "pref-1", { color: "blue" });
+const item = await store.get(["memories", userId], "pref-1");          // → { value, key, namespace, createdAt, updatedAt }
+await store.search(["memories", userId], { filter: { color: "blue" }, limit: 5 });
+await store.search(["documents"], { query: "user preferences", limit: 10 });  // semantic, if vectors supported
+```
+
+Wired at compile time (`graph.compile({ checkpointer, store })`); reached via `runtime.store` in tools (ToolRuntime) or `config.store` in nodes.
+
+### Node cache — `cachePolicy`
+
+Per-node result caching — same input + same node → cached output, skip the run:
+
+```ts
+graph.addNode("expensive", expensiveFn, { cachePolicy: { ttl: 60_000 } });
+graph.compile({ cache: new InMemoryCache() });   // backing store
+```
+
+Keyed by node input + node name; for deterministic nodes with costly LLM calls.
+
+---
+
+## Prebuilt patterns
+
+### `ToolNode`
+
+A ready-made node that runs all tool calls from the last `AIMessage`:
+
+```ts
+const toolNode = new ToolNode([tool1, tool2]);
+graph.addNode("tools", toolNode);
+```
+
+Per invocation it: finds the last `AIMessage` → runs its `tool_calls` **in parallel** → returns one `ToolMessage` per call. With `handleToolErrors: true` (default) it catches errors as `ToolMessage({ status: "error" })`, **re-throws `GraphInterrupt`** (so `interrupt()` in tools still works), and injects full `ToolRuntime` (state/store/writer/config) into each tool.
+
+### `toolsCondition`
+
+The router for the edge out of the agent node — `"tools"` if the last message has `tool_calls`, else `END`. Works with both `BaseMessage[]` and `{ messages }` state shapes.
+
+```ts
+graph.addConditionalEdges("agent", toolsCondition);
+```
+
+### `createReactAgent`
+
+Builds a complete ReAct agent graph in one call:
+
+```ts
+const agent = createReactAgent({
+  llm: model,
+  tools: [tool1, tool2],
+  prompt: "You are a helpful assistant",     // string | SystemMessage | fn | Runnable
+  checkpointer,
+  store,
+  responseFormat: z.object({ answer: z.string() }),  // structured final output (adds a step)
+  stateSchema,                                // custom state (extends MessagesAnnotation)
+});
+```
+
+It assembles `START → agent → toolsCondition → tools → agent → … → END`, where **agent** = prompt → `model.bindTools(tools)` and **tools** = `ToolNode(tools)`. Notable params: `prompt`/`stateModifier` (pre-model state transform), `preModelHook`/`postModelHook`, `responseFormat`, `version: "v1" | "v2"` (v2 runs tools as a subgraph).
+
+### Mental model — how it all connects
+
+```
+createReactAgent({ llm, tools, checkpointer, store })
+  → CompiledStateGraph (MessagesAnnotation)
+     ├─ thread_id → checkpointer → per-conversation history
+     ├─ store     → cross-thread memory
+     ├─ "agent"   → prompt + model.bindTools() → AIMessage (tool_calls or final answer)
+     ├─ toolsCondition → "tools" | END
+     └─ "tools"   → ToolNode: runs tool_calls in parallel, each gets state+store via ToolRuntime → ToolMessage[]
+```
