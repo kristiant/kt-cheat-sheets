@@ -78,6 +78,73 @@ docker run \
 
 ---
 
+## Dockerfile instructions
+
+```dockerfile
+FROM node:20-slim          # base image (pin the tag)
+LABEL org.opencontainers.image.source="https://github.com/me/app"   # metadata
+ARG NODE_ENV=production     # build-time variable (gone at runtime)
+ENV NODE_ENV=$NODE_ENV      # runtime env var (persists in image + containers)
+WORKDIR /app               # cd + mkdir; later relative paths resolve from here
+COPY package*.json ./       # copy local files (preferred)
+RUN npm ci                  # run at build time → a new layer
+COPY . .
+ADD https://example.com/x.tgz /tmp/   # COPY + fetch URLs + auto-extract local tarballs
+EXPOSE 3000                 # documents the port — does NOT publish it
+USER node                   # drop root for runtime
+HEALTHCHECK CMD curl -f http://localhost:3000/health || exit 1
+CMD ["node", "server.js"]   # default command, overridable at `docker run`
+```
+
+The three pairs people confuse:
+
+| Pair | Difference |
+|---|---|
+| **COPY vs ADD** | COPY copies local files only. ADD also fetches URLs and auto-extracts local tarballs. **Prefer COPY**; reach for ADD only for those extras. |
+| **ARG vs ENV** | ARG = build-time only. ENV = persists in the image and into running containers. |
+| **CMD vs ENTRYPOINT** | CMD = default args, fully replaced by `docker run … <cmd>`. ENTRYPOINT = fixed executable; run args are *appended*. Combine: `ENTRYPOINT ["node"]` + `CMD ["server.js"]`. |
+
+## Ports
+
+```bash
+docker run -p 8080:80 nginx     # publish host:container (explicit)
+docker run -p 80 nginx          # container port → a RANDOM host port
+docker run -P nginx             # publish ALL EXPOSEd ports to random host ports
+docker port <container>         # show the actual mappings
+```
+
+`EXPOSE` only documents intent; `-p` / `-P` is what actually publishes.
+
+## Storage — volumes, bind mounts, tmpfs
+
+Containers are ephemeral; three ways to persist or share data:
+
+| Type | What | Use for |
+|---|---|---|
+| **Volume** | Docker-managed storage | databases, app data — the default for persistence |
+| **Bind mount** | a host path mapped in | local dev (live source), config files |
+| **tmpfs** | in-memory, never on disk | secrets/scratch you don't want persisted |
+
+```bash
+# named volume
+docker volume create appdata
+docker run -v appdata:/var/lib/postgresql/data postgres
+docker run --mount type=volume,src=appdata,dst=/data postgres   # verbose, explicit form
+
+# bind mount (host dir → container)
+docker run -v "$(pwd)":/app node:20
+docker run -v "$(pwd)"/conf:/etc/app:ro nginx          # :ro = read-only
+docker run -v "$(pwd)":/app -v /app/node_modules node:20  # anon volume shields a sub-dir
+
+# tmpfs (in-memory)
+docker run --tmpfs /tmp:size=64m alpine
+```
+
+- **Volume vs bind on a non-empty dir:** a *named volume* mounted onto a path that already has files in the image is **seeded** with them on first use; a *bind mount* **hides** the image's contents with the host dir.
+- Manage: `docker volume ls` · `inspect <v>` · `rm <v>` · `prune`.
+
+---
+
 ## Advanced
 
 ### Multi-stage builds (small, secure images)
@@ -112,11 +179,17 @@ COPY . .                 # changes often → only this layer rebuilds
 
 ### Build for multiple architectures
 
+Multi-platform needs a `docker-container` builder (the default driver can't do it) — create one once with **buildx**:
+
 ```bash
+docker buildx create --name multi --driver docker-container --use
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t myrepo/myapp:1.0 --push .
+docker buildx ls            # list builders
 ```
+
+> **Docker Build Cloud** — `docker buildx create --driver cloud <org>/<builder>` offloads builds to a remote, shared-cache builder (fast cold builds, native multi-arch, no local emulation). Same `buildx build` after.
 
 ### .dockerignore (faster builds, smaller context)
 
