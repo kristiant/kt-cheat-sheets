@@ -1,162 +1,204 @@
 # State of AI Engineering
 
-Date: 2026-06-22
-Scope: sampled current AI Engineer / Applied AI Engineer / AI Product Engineer / ML Engineer postings across Australia, the US, and the UK.
-Method: treat postings as telemetry; record concrete named technical signals visible in job pages on 2026-06-22. Sample favors official company job pages over aggregators.
+Date: 2026-06-23
+Compared against prior run: 2026-06-22
+Scope: sampled current AI Engineer / Applied AI Engineer / AI Product Engineer / ML Engineer / Agentic Engineer postings across Australia, the US, and the UK, using live company job pages.
+Method: treat postings as telemetry; record named stack details only.
 
 ## Week-over-Week Change
 
-### New or materially clearer this week
+### New or materially clearer this run
 
 | Signal | Evidence | Read |
 | --- | --- | --- |
-| `AWS Strands` / `Strands SDK` | Hibu US; Ripple US; Smartsheet UK (nice-to-have OSS contributions); Komodo US | The AWS-native agent stack is no longer background noise. It is now named alongside `MCP`, `LangGraph`, and eval infra. |
-| `AgentCore` | Hibu US; Ripple US | New concrete runtime/orchestration signal. Last week had workflow durability adjacency; this week has named AWS agent runtime components. |
-| `A2A` / agent-to-agent protocols | Veeam US; Medeloop US | Protocol language is getting more explicit. Teams are no longer only saying "multi-agent"; they are naming communication patterns. |
-| `Deep Agents` | Awin UK | New framework signal in a production product-engineering role, paired with `LangGraph` rather than replacing it. |
-| `OWASP LLM Top 10` | Veeam US | Security language is becoming more operational and standards-shaped, not just generic "guardrails". |
-| `web browsing` / `computer use` as platform capabilities | Addepar US | Cross-surface agent capability is now showing up in platform job requirements, not only demos or research chatter. |
-| `Claude Code` / agent harness language | Ripple US; Anthropic UK public-sector role (`Claude Code` support) | Developer-agent tooling moved closer to hiring-language center. |
-| `msgspec` | Snorkel AI US | Typed Python serialization is a small but high-signal implementation detail that did not show up clearly last week. |
+| `OpenAI Agents SDK` | Dataiku UK; Okta US; PlayStation US | No longer a background mention. It now appears directly inside orchestration/framework lists for production roles. |
+| `Claude Agent SDK` | Dataiku UK | Anthropic-adjacent agent SDK language is now explicit in a mainstream enterprise tooling role. |
+| `Braintrust` | PhysicsX UK; ID.me US | Clearer than last run, and now paired with `OTel`, `LangSmith`, and eval platform design rather than generic observability. |
+| `DSPy` | Databricks AU | New named framework signal in an Australia role, paired with `HuggingFace`, `LangChain`, RAG, multi-agent, and fine-tuning. |
+| `ACP` | PhysicsX UK | First explicit appearance in the sampled postings alongside `MCP` and `A2A`. |
+| agent security standards bundle | Okta US | `OWASP Top 10 for Agentic Applications`, `NIST AI RMF`, `MITRE ATLAS`, `ISO/IEC 42001`, `EU AI Act` appear in one concrete stack. |
+| fine-grained auth stack for agents | Okta US | `RFC 8693`, `DPoP`, `SCIM`, `ReBAC`, `ABAC`, `OPA`, `Cedar`, `OpenFGA` are now directly attached to agent engineering work. |
+| voice-agent stack | Zoom AU | `ASR`, `TTS`, turn-taking, barge-in, `ElevenLabs`, `Azure`, `Cartesia`, plus contact-center vendors make voice deployment look more operational than last week. |
+| inference serving stack | Anaplan UK | `vLLM`, `TensorRT`, `Ray` surfaced together in a general enterprise AI engineer role rather than a pure infra role. |
+| workflow / app-layer tools around agents | PlayStation US | `N8N`, `AWS Bedrock Agents`, `Knowledge Bases`, `OpenAI Agents SDK` show up in the same orchestration set. |
 
-### Stronger than last week
+### Stronger than last run
 
 - `MCP`
-  - Still the strongest protocol signal in the sample, but now described as internal MCP servers, MCP resource packs, MCP server/client builds, and secure tool exposure contracts.
-- AWS-first agent infrastructure
-  - `AWS Bedrock` is still common, but now paired with `Strands`, `AgentCore`, `EKS`, `Istio`, and deployment patterns rather than just model access.
-- Security and compliance around agent systems
-  - `RBAC`, `OAuth 2.0`, `OIDC`, `query constraints`, `safe tool boundaries`, `GDPR`, `EU AI Act`, `DORA`, `NIS2`, `Zero Data Retention`, and `OWASP LLM Top 10` all surfaced in-region this week.
-- TypeScript as a real AI runtime language
-  - The `Python` + `TypeScript` pairing remains stronger than either alone, with product-facing orchestration, SDKs, agent UIs, and typed contracts now explicit again.
+  - Still broad, but more roles now expect building or publishing MCP servers, not just consuming them.
+- evals as a product/platform layer
+  - `ID.me`, `PhysicsX`, `Dataiku`, `Okta`, `PlayStation`, and `Anaplan` all talk about evals, monitoring, regressions, or observability with concrete technical ownership.
+- TypeScript as an AI runtime
+  - `Node.js` / `TypeScript` shows up in `Zoom`, `Dataiku`, `PhysicsX`, `PlayStation`, and the prior `Bain` / `Ripple` / `Smartsheet` sample. This is not just frontend adjacency.
+- governance and safe delegation
+  - Security language is more technical this run: token exchange, policy engines, rogue-agent detection, sandboxing, kill switches, scope sprawl, and delegation-chain monitoring.
 
-### Weaker, thinner, or newly absent in this sample
+### Weaker, thinner, or absent in this run
 
-- `PydanticAI`
-  - Clear last week; not a strong in-region signal this week.
-- `Mastra`
-  - Visible last week; absent from this sampled AU/US/UK set.
-- `Braintrust`
-  - Still weaker than `LangSmith`, `Langfuse`, and generic observability + eval stacks.
+- `Strands` / `AgentCore`
+  - Very strong in the previous sample, but not central in this fresh set.
+- `Langfuse`
+  - Present last run; weaker this run versus `LangSmith`, `OTel`, `Braintrust`, and generic eval infra.
+- graph-heavy retrieval
+  - `GraphRAG` appears in `Dataiku`, but `Neo4j` / graph-community pipelines are not as visible as in the prior AU sample.
 - `Promptfoo`
-  - Still real, but again concentrated in one standout AU role rather than broadly recurring.
-- `Google ADK`
-  - Still present, but only as a secondary AU signal rather than a recurring cross-region stack choice this week.
+  - Not clearly present in the new sample.
+- `Qdrant`
+  - Not visible in this set, while `Pinecone`, `Weaviate`, `pgvector`, `OpenSearch`, and Azure-native search patterns remain more commonly named.
 
-### Trend call
+### Direction call
 
-The direction that looks more real now than it did last week: teams are converging on agent runtime operations as a first-class engineering domain. The postings care less about "which framework wins" and more about protocol boundaries, deployment kits, runtime observability, secure tool exposure, eval pipelines, and cross-team platform reuse.
+The trend that looks more real now: the market is hardening around agent platform engineering, not just application prototyping. The clearest hiring signal is the combination of protocol work (`MCP`, `A2A`, `ACP`), eval pipelines, identity/policy controls, and typed service/runtime engineering around agents.
 
 ## Signal Map
 
-### Strongest signals in the sample
+### Strongest signals in this sample
 
 | Category | Stronger signals | Notes |
 | --- | --- | --- |
-| Agent frameworks / protocols | `MCP`, `LangGraph` | Still the center of gravity. |
-| Cloud / model platforms | `AWS Bedrock`, `Anthropic`, `OpenAI`, `Azure OpenAI Service` | `AWS` remains the most explicit cloud anchor. |
-| Eval / observability | `LangSmith`, `Langfuse`, `OpenTelemetry`, regression tests, automated eval pipelines | Vendor mix is widening, but many ads still describe capability more than a single tool. |
-| Languages / runtimes | `Python`, `TypeScript`, `Node.js`, `SQL` | Bilingual product/runtime roles remain common. |
-| Safety / robustness | guardrails, hallucination reduction, prompt injection defenses, HITL, auditability, policy enforcement | More concrete than last week. |
+| Protocols / orchestration | `MCP`, `LangGraph`, `A2A`, `OpenAI Agents SDK` | `MCP` remains the center of gravity; SDK/protocol choice is becoming explicit. |
+| Eval / observability | `LangSmith`, `OpenTelemetry`, `Braintrust`, regression suites, drift monitoring, LLM-as-judge | Evals are increasingly an owned platform concern. |
+| Clouds / model platforms | `AWS`, `Azure`, `GCP`, `AWS Bedrock`, `OpenAI`, `Anthropic`, `Gemini` | Multi-provider routing is now a repeated requirement, not a nice-to-have. |
+| Languages / runtimes | `Python`, `TypeScript`, `Node.js`, `Go`, `Java` | `Python` + `TypeScript` remains the dominant pairing. |
+| Retrieval / storage | `Pinecone`, `Weaviate`, `OpenSearch`, `pgvector`, `Redis`, `Azure AI Search`, `Knowledge Banks`, vector + hybrid retrieval | Still more common than one single "winner" DB. |
+| Safety / robustness | guardrails, red-teaming, prompt injection mitigation, sandboxing, policy adherence, cost tracking, latency tracking | Security/quality language is much more operational than generic. |
 
 ### Sharper niche signals
 
 | Category | Signals |
 | --- | --- |
-| AWS-native agent stack | `Strands`, `AgentCore`, `AWS Bedrock`, `EKS`, `Istio` |
-| Security / identity | `OAuth 2.0`, `OIDC`, `Azure AD / Entra ID`, `RBAC`, `Zero Data Retention`, `OWASP LLM Top 10` |
-| Retrieval / memory variants | `Neo4j`, `GraphRAG`, vector DBs, hybrid retrieval, memory/state systems |
-| Platform capabilities | web browsing, computer use, agent SDKs, deployment kits, resource packs |
-| Inference / serving | `vLLM` |
+| Protocol standards | `MCP`, `A2A`, `ACP` |
+| Agent identity / auth | `OAuth 2.0`, `OIDC`, `SAML`, `SCIM`, `RFC 8693`, `DPoP`, `ReBAC`, `ABAC`, `OPA`, `Cedar`, `OpenFGA` |
+| Eval vendors / stacks | `Braintrust`, `LangSmith`, `Arize Phoenix`, `OpenTelemetry`, `Datadog`, `W&B`, `MLflow` |
+| Inference / serving | `vLLM`, `TensorRT`, `Ray` |
+| Voice agent runtime | `ASR`, `TTS`, turn-taking, barge-in, `ElevenLabs`, `Cartesia` |
+| App / workflow layer | `N8N`, `SWR`, `FastAPI`, `AWS Lambda`, `Vue.js`, `Node.js` |
 
-## Company -> Tool Matrix
+## Company -> Signal Matrix
 
 ### Australia
 
 | Company | Role | Concrete signal |
 | --- | --- | --- |
-| Anthropic | Applied AI Engineer | `Claude`; evaluation frameworks; Python; customer-facing architecture design for LLM products. Source: [Anthropic](https://job-boards.greenhouse.io/anthropic/jobs/5248983008) |
-| Bain (`DataEdge`) | Full Stack AI Product Engineer | `TypeScript`; `Node.js`; `Python`; `LangGraph`; `FastAPI`; `Pydantic v2`; `pytest`; `Temporal`; `pgvector`; `OpenSearch`; `Docker`; `Kubernetes`; `tRPC`; `Zod`; `OpenAPI codegen`; `Vitest`; `Jest`; `Vite`; `Turbopack`; `esbuild`. Source: [Bain](https://www.bain.com/careers/find-a-role/position/?jobid=106304) |
+| Zoom | Applied AI Engineer | voice agents; tool use; multi-step orchestration; guardrails; `ASR`; `TTS`; turn-taking; barge-in; `ElevenLabs`; `Azure`; `Cartesia`; `Python`; working knowledge of `TypeScript` or `Go`; `Genesys`; `Five9`; `NICE`; `Zoom Contact Center`; `Decagon`; `Sierra`. Source: [Zoom](https://careers.zoom.us/jobs/applied-ai-engineer-remote-australia) |
+| Databricks | AI Engineer - FDE | `Mosaic AI`; `RAG`; multi-agent systems; `Text2SQL`; fine-tuning; `HuggingFace`; `LangChain`; `DSPy`; evaluation and optimizations; `pandas`; `scikit-learn`; `PyTorch`; `AWS`; `Azure`; `GCP`; `Apache Spark`. Source: [Databricks](https://www.databricks.com/company/careers/professional-services-operations/ai-engineer---fde-forward-deployed-engineer-8298792002) |
+| Bain (`DataEdge`) | Full Stack AI Product Engineer | `TypeScript`; `Node.js`; `Python`; `LangGraph`; `FastAPI`; `Pydantic v2`; `Temporal`; `pgvector`; `OpenSearch`; `Docker`; `Kubernetes`; `tRPC`; `Zod`; `OpenAPI codegen`; `Vitest`; `Jest`; `Vite`; `Turbopack`; `esbuild`. Source: [Bain](https://www.bain.com/careers/find-a-role/position/?jobid=106304) |
 | Karbon | Associate AI Engineer | `RAG`; chaining; `MCP`; `Python`; `sklearn`; `PyTorch`; `TensorFlow`; `spaCy`; `ADK`; `LangGraph`; `Agent SDK`; `Snowflake`; `dbt`; `C#`; `Azure`. Source: [Karbon](https://job-boards.greenhouse.io/karbon/jobs/5995013004) |
-| Catapult Sports | Principal AI Engineer | `Go`; `Rust`; `Python`; `React`; `Neo4j`; `GraphRAG`; `AWS Bedrock`; `Promptfoo`; map-reduce over graph communities; LLM-as-judge; custom eval frameworks. Source: [Catapult Sports](https://job-boards.greenhouse.io/catapultsports/jobs/7902420) |
 
 ### United Kingdom
 
 | Company | Role | Concrete signal |
 | --- | --- | --- |
-| Smartsheet | Sr. Forward Deployed AI Engineer | multi-agent orchestration; `MCP` resource packs; `Python`; `TypeScript`/`JavaScript`; deployment kits; agent deployment at scale; nice-to-have `Strands SDK`, `LangChain`, open-source MCP servers, `AWS Bedrock`, `Temporal`, `Databricks`. Source: [Smartsheet](https://job-boards.greenhouse.io/smartsheet/jobs/7930145) |
-| Awin | Senior AI Engineer | `AWS`; `LangGraph`; `Deep Agents`; `LangSmith`; `MCP`; vector databases; hybrid retrieval; structured evals; regression tests; tracing/observability; caching and routing strategies. Source: [Awin](https://job-boards.greenhouse.io/awin/jobs/7720582003) |
-| Forter | Senior Software AI Engineer | internal `MCP` server; `RAG`; evaluation frameworks; AI guardrails; secure exposure of internal data stores; `Strands Agents` in related role requirements. Source: [Forter](https://job-boards.greenhouse.io/forter/jobs/8415897002) |
-| Capco | Lead AI Engineer | multi-modal LLMs; `LangChain`; `LlamaIndex`; `Langfuse`; `LangSmith`; `MCP`; bias/hallucination mitigation; Python; cloud-native AI deployment. Source: [Capco](https://job-boards.greenhouse.io/capco/jobs/6870486) |
-| Anthropic | Applied AI Security Architect | `MCP`; `RBAC`; `GDPR`; `EU AI Act`; `DORA`; `NIS2`; `Zero Data Retention`; `AWS`; `Azure`; `GCP`; audit logging; private endpoints; API security. Source: [Anthropic](https://job-boards.greenhouse.io/anthropic/jobs/5227641008) |
-| Anthropic | Applied AI Architect, Public Sector | `Claude Code`; `Claude API`; `Claude for Enterprise`; evaluation frameworks; UK public-sector security/governance standards. Source: [Anthropic](https://job-boards.greenhouse.io/anthropic/jobs/5227643008) |
+| Dataiku | Generative AI Engineer | `Dataiku Agent Hub`; `Prompt Studio`; `LLM Mesh`; `Knowledge Banks`; `LangGraph`; `CrewAI`; `Claude Agent SDK`; `OpenAI Agents SDK`; `OpenAI`; `Anthropic`; `Gemini`; `AWS Bedrock`; `Azure`; open-source models; `GraphRAG`; reranking; dynamic filtering; custom `MCP` servers; evals; `A2A`; `Cost Guard`; `Quality Guard`; `Vue.js`; `Node.js`; `Claude Code`; `Cursor`. Source: [Dataiku](https://job-boards.greenhouse.io/dataiku/jobs/5978968004) |
+| PhysicsX | Principal Agentic Engineer | `MCP`; `A2A`; `ACP`; durable execution; agent memory; `Python`; `Go`; `TypeScript`; `Kubernetes`; `Docker`; `Terraform`; `LangGraph`; `LangChain`; `Temporal`; `Pinecone`; `Weaviate`; `OTel`; `LangSmith`; `Arize`; `Braintrust`; token cost tracking; agent sandboxing; permissioning; `PydanticAI`. Source: [PhysicsX](https://job-boards.eu.greenhouse.io/physicsx/jobs/4804769101) |
+| Anaplan | Senior AI Engineer | GenAI + ML systems; backend APIs; RAG; conversational interfaces; agentic workflows; fine-tuning; `Python`; vector DBs (`Pinecone`, `Weaviate`, `Qdrant`); model serving (`vLLM`, `TensorRT`, `Ray`); observability (`LangSmith`, `W&B`, `MLflow`); A/B testing; inference cost and scalability optimization. Source: [Anaplan](https://job-boards.greenhouse.io/anaplan/jobs/8573871002?ref=employbl) |
+| Baringa | Senior Consultant, Forward Deployed AI Engineer | major LLM SDKs; agent frameworks; `RAG`; `MCP` servers; `scikit-learn`; `PyTorch`; `XGBoost`; `SageMaker`; `Azure ML`; `Vertex AI`; `FastAPI`; `AWS Lambda`; event-driven patterns; `React`; `Next.js`; `Material UI`; `SWR`; `Jest`; `Cypress`; `React Test Library`. Source: [Baringa](https://job-boards.eu.greenhouse.io/baringa/jobs/4869804101) |
 
 ### United States
 
 | Company | Role | Concrete signal |
 | --- | --- | --- |
-| Hibu | Applied AI Engineer | `AWS Bedrock`; `MCP`; `Salesforce`; `Claude`/`GPT`; `RAG`; webhooks; `Vertex AI`; `Azure AI`; `AWS Strands Agents`; `Claude Managed Agents`; `AWS AgentCore`. Source: [Hibu](https://job-boards.greenhouse.io/hibu/jobs/4696330005) |
-| Ripple | Staff Software Engineer, GenAI Platform | `Python`; `Go`; `Java`; `LangGraph`; `MCP`; `Claude Code`; `AgentCore`; `Strands`; `LangChain`; `EKS`; `Istio`; `OpenTelemetry`; `Prometheus`; `Grafana`; `Qdrant`; `Tree-sitter`. Source: [Ripple](https://job-boards.greenhouse.io/ripple/jobs/7918366) |
-| Snorkel AI | Applied AI Engineer, Federal | `pydantic`; `mypy`; `pytest`; `poetry`; `FastAPI`; `msgspec`; `Ray`; `Airflow`; `scikit-learn`; `PyTorch`; `Hugging Face Transformers`; `FAISS`; `Spark`; `Chroma`; `Weaviate`; `LlamaIndex`; `LangGraph`; `CrewAI`. Source: [Snorkel AI](https://job-boards.greenhouse.io/snorkelai/jobs/5721276004) |
-| Addepar | Sr. Software Engineer, AI Platform | `Python`; `Golang`; `gRPC`; `AWS`; `Kubernetes`; MCP / cross-platform tool use; web browsing; computer use; `Databricks`; `LangChain`; `MLflow`. Source: [Addepar](https://job-boards.greenhouse.io/addepar1/jobs/8479770002) |
-| Future | Applied AI Engineer | `LangChain`; `LangGraph`; tool/function calling; structured output; `Pydantic`; `JSON Schema`; `SSE`; webhooks; `AWS Bedrock`; `ECR`; `CloudFront`; `S3`; `Cognito`; `Langfuse`; `OpenTelemetry`; `Datadog`. Source: [Future](https://job-boards.greenhouse.io/future/jobs/4683133005) |
-| Komodo Health | Full-Stack AI Engineer | `vLLM`; `CrewAI`; `Strands`; `OpenAI` / Chat Completions APIs; `Spark`; `Snowflake`; `Databricks`; monitoring, evaluation, and governance across the "full intelligence stack". Source: [Komodo Health](https://job-boards.greenhouse.io/komodohealth/jobs/8584991002) |
-| Medeloop | Staff AI Machine Learning Engineer | `MCP`; `A2A`; `LangChain`; `LangGraph`; `Hugging Face`; `PyTorch`; vector databases; `LangSmith`; `Phoenix`; `ReAct`; `CoT`; `ToT`; adversarial testing; HITL. Source: [Medeloop](https://job-boards.greenhouse.io/medeloop/jobs/4236722009) |
-| Veeam | Staff AI Engineer | `Azure OpenAI Service`; `Kubernetes`; `Cosmos DB`; `Blob Storage`; `Event Bus`; `MCP`; `OAuth 2.0`; `OIDC`; `Azure AD / Entra ID`; agent-to-agent protocols; OWASP LLM Top 10; jailbreak resistance; adversarial prompt hardening. Source: [Veeam](https://job-boards.greenhouse.io/veeamsoftware/jobs/4876895101) |
-| Capstone Investment Advisors | AI Engineer | `Python`; `LangChain`; `LlamaIndex`; vector stores; `OpenAI API`; `Anthropic API`; MCP servers/clients; RAG; function calling. Source: [Capstone](https://job-boards.greenhouse.io/capstoneinvestmentadvisors/jobs/8453280002) |
+| Okta | Senior Forward Deployed Engineer - Okta for AI Agents | `OWASP Top 10 for Agentic Applications`; `NIST AI RMF`; `MITRE ATLAS`; `HIPAA`; `FedRAMP`; `SOC 2`; `OAuth 2.0`; `OIDC`; `SAML`; `SCIM`; `RFC 8693`; `DPoP`; `MCP`; `A2A`; `ISO/IEC 42001`; `EU AI Act`; `ReBAC`; `ABAC`; `OPA`; `Cedar`; `OpenFGA`; `Claude`; `ChatGPT`; `Microsoft Copilot`; `Agentforce`; `Bedrock`; `LangChain`; `CrewAI`; `OpenAI Agents SDK`; `MCP` servers; `Claude Code`; `Cursor`; rogue-agent detection; kill-switch verification; anomalous delegation chains. Source: [Okta](https://www.okta.com/company/careers/okta-for-ai-agents/senior-forward-deployed-engineer-okta-for-ai-agents-7961356/) |
+| ID.me | Staff Software Engineer - AI Agent Evaluations | `RAG`; data chunking; pre-retrieval data quality gates; vector search accuracy; hallucination reduction; eval pipelines; drift monitoring; LLM-as-judge; property-based testing; golden datasets; `Claude Code`; `Cursor`; `Python`; `Java`; `Go`; `Braintrust`; `LangChain`; `LangGraph`; `CrewAI`; human-in-the-loop evals; shadow scoring; red-teaming; `Datadog`; `OpenTelemetry`. Source: [ID.me](https://job-boards.greenhouse.io/idme/jobs/7766372003) |
+| PlayStation | AI Engineer | `AWS`; async processing; RAG; chunking; indexing; reranking; citations; vector and hybrid search; `OpenSearch`; `Pinecone`; `Weaviate`; `Redis`; `pgvector`; `Azure AI Search`; orchestration via `LangChain`; `LangGraph`; `LlamaIndex`; `Semantic Kernel`; `OpenAI Agents SDK`; `N8N`; `AWS Bedrock Agents`; `Knowledge Bases`; observability via `LangSmith`; `Arize Phoenix`; `OpenTelemetry`; `Datadog`; `Splunk`; `New Relic`; `CloudWatch`; `MCP`. Source: [PlayStation](https://job-boards.greenhouse.io/sonyinteractiveentertainmentglobal/jobs/6007946004) |
+| Pairwise | Network Infrastructure & AI Engineer | dual-stack infra + AI role; `Azure`; `AWS`; VNet/VPC; private endpoints; `Terraform`; `Bicep`; `Kubernetes`; model gateways; vector stores; ingestion pipelines; `LangGraph`; `LangChain`; RAG; evals-as-CI; tracing; cost and latency monitoring; `Python`. Source: [Pairwise](https://job-boards.greenhouse.io/pairwiseviadelart/jobs/4694763005) |
+
+## Tool -> Companies
+
+| Tool / platform | Companies |
+| --- | --- |
+| `MCP` | Karbon, Dataiku, PhysicsX, Baringa, Okta, PlayStation |
+| `A2A` | Dataiku, PhysicsX, Okta |
+| `ACP` | PhysicsX |
+| `LangGraph` | Bain, Karbon, Dataiku, PhysicsX, PlayStation, Pairwise |
+| `LangChain` | Databricks, Dataiku, PhysicsX, PlayStation, Pairwise, Baringa, Okta |
+| `OpenAI Agents SDK` | Dataiku, Okta, PlayStation |
+| `Claude Agent SDK` | Dataiku |
+| `CrewAI` | Dataiku, Okta, ID.me |
+| `PydanticAI` | PhysicsX |
+| `DSPy` | Databricks |
+| `Temporal` | Bain, PhysicsX |
+| `Braintrust` | PhysicsX, ID.me |
+| `LangSmith` | PhysicsX, Anaplan, PlayStation |
+| `Arize` / `Phoenix` | PhysicsX, PlayStation |
+| `OpenTelemetry` | PhysicsX, ID.me, PlayStation |
+| `MLflow` | Anaplan |
+| `W&B` | Anaplan |
+| `Pinecone` | PhysicsX, Anaplan, PlayStation |
+| `Weaviate` | PhysicsX, Anaplan, PlayStation |
+| `Qdrant` | Anaplan |
+| `pgvector` | Bain, PlayStation |
+| `OpenSearch` | Bain, PlayStation |
+| `Azure AI Search` | PlayStation |
+| `AWS Bedrock` | Dataiku, Okta, PlayStation |
+| `vLLM` | Anaplan |
+| `TensorRT` | Anaplan |
+| `Ray` | Anaplan |
+| `HuggingFace` | Databricks |
+| `ElevenLabs` | Zoom |
+| `Cartesia` | Zoom |
+| `Claude Code` | Dataiku, Okta, ID.me |
+| `Cursor` | Dataiku, Okta, ID.me |
 
 ## Pairings That Look Real
 
 | Pairing | Where seen | Why it matters |
 | --- | --- | --- |
-| `AWS Bedrock` + `Strands` + `AgentCore` + `MCP` | Hibu US; Ripple US (runtime overlap) | Strongest new stack-combination this week. AWS-native agent runtime language is becoming explicit. |
-| `LangGraph` + `MCP` | Bain AU; Karbon AU; Awin UK; Ripple US | Still the most stable orchestration + protocol pairing. |
-| `MCP` + identity / policy controls | Veeam US; Anthropic UK | Protocol work is now coupled to `RBAC`, `OAuth`, `OIDC`, auditability, and secure tool boundaries. |
-| `TypeScript` + `Python` + durable workflow thinking | Bain AU; Smartsheet UK | Full-stack AI product roles are explicitly spanning typed UI/services and backend agent systems. |
-| `Neo4j` + `GraphRAG` + `Promptfoo` + `AWS Bedrock` | Catapult AU | Graph-native retrieval remains niche but high-signal and coherent when it appears. |
-| `OpenTelemetry` + AI-specific eval / traces | Ripple US; Future US | AI telemetry is converging with standard platform observability. |
-| `LangSmith` + eval-driven product engineering | Awin UK; Capco UK | `LangSmith` remains a strong named anchor when teams discuss tracing and regression. |
-| `Claude Code` + agent platform work | Ripple US; Anthropic UK public sector | Developer-agent surfaces are entering the hiring baseline. |
+| `MCP` + `A2A` + agent SDKs | Dataiku UK; Okta US; PhysicsX UK | Protocol layering is becoming explicit: tool access, inter-agent communication, and application-owned orchestration are being separated. |
+| `MCP` + auth/policy engines | Okta US | Agent plumbing is now directly tied to enterprise authorization architecture, not treated as an afterthought. |
+| `LangGraph` + durable execution | Bain AU; PhysicsX UK | Durable workflow thinking is sticking to agent platform roles, not just backend workflow teams. |
+| `Python` + `TypeScript` + full-stack AI product ownership | Zoom AU; Dataiku UK; PhysicsX UK; Bain AU | Product AI roles increasingly span backend agents, orchestration, thin UIs, and typed integration layers. |
+| `Braintrust` + `LangSmith` + `OTel` | PhysicsX UK | Teams are mixing vendor-specific AI eval tooling with standard telemetry rather than choosing one or the other. |
+| `OpenAI Agents SDK` + `LangGraph` + `MCP` | Dataiku UK; PlayStation US | The market is not converging on one framework; teams are composing stacks. |
+| voice AI + contact-center stack + agent platforms | Zoom AU | Voice AI is showing up as production deployment engineering, not novelty assistant work. |
+| vector DB plurality + inference serving | Anaplan UK; PlayStation US | Retrieval choice and serving choice are both open design dimensions; no single default stack. |
+| infra networking + agent platform | Pairwise US | Some AI engineer roles are explicitly hybridizing cloud/network engineering with RAG and agent ops. |
 
 ## Language / Runtime Signal
 
 | Runtime | Strength in sample | Typical role shape |
 | --- | --- | --- |
-| `Python` | dominant | orchestration, evals, backend AI services, platform layers |
-| `TypeScript` / `Node.js` | strong second | AI product surfaces, SDKs, full-stack agent systems, deployment tooling |
-| `SQL` | common | retrieval, analytics, data products, warehouse-backed AI |
-| `Go` | sharper than last week | systems-heavy agent services and platform infra |
-| `Java` / `Golang` / `gRPC` | supporting but real | platform and enterprise integration roles |
-| `Rust` | still niche | performance-sensitive paths, not general baseline |
+| `Python` | dominant | orchestration, evals, backend AI services, agent APIs |
+| `TypeScript` / `Node.js` | strong | agent tools, webapps, platform integration layers, product surfaces |
+| `Go` | moderate but high-signal | systems-heavy platform roles, especially around agent infrastructure |
+| `Java` | present but secondary | enterprise service integration and backend support roles |
+| frontend runtimes | steady | `Vue.js`, `React`, `Next.js`, `SWR`, `N8N` appear as part of agent product delivery, not separate workstreams |
 
 ### Runtime read
 
-- The strongest hiring shape is still `Python` + `TypeScript`.
-- `TypeScript` is now repeatedly tied to agent deployment kits, SDKs, orchestration surfaces, and trustworthy UI patterns, not just frontend work.
-- `Go` remains a high-signal secondary runtime when the role owns core agent services or performance-sensitive infra.
+- The most common real-world shape remains `Python` plus a typed application/runtime layer (`TypeScript` / `Node.js`).
+- `Go` remains a sharp signal when the team owns platform internals or secure execution paths.
+- The "AI engineer" title now regularly includes frontend or full-stack delivery requirements when the system is agent-facing or tool-heavy.
 
 ## Safety / Robustness Signal
 
 ### Common
 
 - guardrails
-- evaluation frameworks
-- regression testing
-- human-in-the-loop
-- hallucination reduction
-- structured outputs
-- auditability
+- eval frameworks
+- regression suites
+- monitoring and observability
+- prompt engineering with validation
+- cost / latency tracking
+- secure enterprise deployment
 
-### More specific this week
+### More specific this run
 
-- `OWASP LLM Top 10`
-- adversarial prompt hardening
-- jailbreak resistance
-- `Zero Data Retention`
-- `RBAC` / auth-context propagation
-- query constraints and safe tool boundaries
-- `GDPR`, `EU AI Act`, `DORA`, `NIS2`
-- bias / hallucination mitigation as named role language
+- red-teaming
+- property-based testing for AI outputs
+- golden datasets
+- shadow scoring
+- policy adherence checks
+- rogue-agent detection
+- anomalous delegation-chain monitoring
+- kill-switch verification
+- sandboxing and permissioning
+- prompt injection / context leakage mitigation
+- `OWASP Top 10 for Agentic Applications`
+- `NIST AI RMF`
+- `MITRE ATLAS`
+- `ISO/IEC 42001`
+- `EU AI Act`
 
 ## Seen / Not Seen
 
@@ -164,69 +206,65 @@ The direction that looks more real now than it did last week: teams are convergi
 
 - `MCP`
 - `LangGraph`
-- `AWS Bedrock`
-- `Anthropic`
-- `OpenAI`
 - `Python`
 - `TypeScript`
-- `LangSmith`
-- `Langfuse`
-- `OpenTelemetry`
-- `vLLM`
-- `Strands`
-- `AgentCore`
+- `AWS`
+- `Azure`
+- `OpenAI`
+- `Anthropic`
+- eval pipelines
+- observability
+- vector retrieval
+- cost / latency optimization
+- `Claude Code`
+- `Cursor`
 
 ### Seen, but not dominant
 
-- `LlamaIndex`
+- `OpenAI Agents SDK`
+- `Claude Agent SDK`
 - `CrewAI`
-- `Azure OpenAI Service`
-- `Databricks`
-- `MLflow`
-- `Neo4j`
-- `GraphRAG`
-- `Promptfoo`
-- `Deep Agents`
-- `Claude Code`
-
-### Weak or absent in this sample
-
-- `Mastra`
 - `PydanticAI`
+- `DSPy`
 - `Braintrust`
+- `vLLM`
+- `TensorRT`
+- `Ray`
+- `N8N`
+- `Semantic Kernel`
+- `GraphRAG`
+
+### Not clearly seen in this sample
+
+- `Langfuse`
+- `Promptfoo`
 - `TensorZero`
 - `Helicone`
 - `Milvus`
 - `turbopuffer`
-- `Semantic Kernel`
-- `Vercel AI SDK`
+- `AutoGen`
+- `Semantic Kernel` as a primary default
+- `Strands` / `AgentCore` as a central stack
 
 ## Regional Read
 
-| Region | Strongest pattern | Distinctive signal this week |
+| Region | Strongest pattern | Distinctive signal this run |
 | --- | --- | --- |
-| Australia | full-stack product AI plus graph-heavy experimentation | `TypeScript`-first product engineering at Bain and graph-native eval-heavy architecture at Catapult |
-| United Kingdom | deployment/integration roles with stronger governance language | `MCP` resource packs, `Deep Agents`, and explicit UK/EU regulatory framing |
-| United States | platform-heavy agent engineering with sharper runtime specificity | `Strands`, `AgentCore`, `OpenTelemetry`, `Qdrant`, `Tree-sitter`, `Azure OpenAI Service`, and explicit A2A/security boundary work |
+| Australia | customer-facing deployment and full-stack AI product engineering | voice-agent operations (`Zoom`) and `DSPy` + `Mosaic AI` (`Databricks`) |
+| United Kingdom | protocol-rich enterprise agent platform work | `OpenAI Agents SDK`, `Claude Agent SDK`, `MCP`, `A2A`, `ACP`, `Braintrust`, `Temporal`, `vLLM`, `TensorRT` |
+| United States | identity, policy, and evaluation-heavy agent engineering | fine-grained auth for agents (`Okta`), eval platform design (`ID.me`), broad orchestration/search stack (`PlayStation`) |
 
 ## Source Set
 
-- [Anthropic - Applied AI Engineer (Sydney)](https://job-boards.greenhouse.io/anthropic/jobs/5248983008)
+- [Zoom - Applied AI Engineer (Australia)](https://careers.zoom.us/jobs/applied-ai-engineer-remote-australia)
+- [Databricks - AI Engineer - FDE (Sydney)](https://www.databricks.com/company/careers/professional-services-operations/ai-engineer---fde-forward-deployed-engineer-8298792002)
 - [Bain - Full Stack AI Product Engineer (DataEdge)](https://www.bain.com/careers/find-a-role/position/?jobid=106304)
 - [Karbon - Associate AI Engineer](https://job-boards.greenhouse.io/karbon/jobs/5995013004)
-- [Catapult Sports - Principal AI Engineer](https://job-boards.greenhouse.io/catapultsports/jobs/7902420)
-- [Smartsheet - Sr. Forward Deployed AI Engineer (UK)](https://job-boards.greenhouse.io/smartsheet/jobs/7930145)
-- [Awin - Senior AI Engineer](https://job-boards.greenhouse.io/awin/jobs/7720582003)
-- [Forter - Senior Software AI Engineer](https://job-boards.greenhouse.io/forter/jobs/8415897002)
-- [Capco - Lead AI Engineer](https://job-boards.greenhouse.io/capco/jobs/6870486)
-- [Anthropic - Applied AI Security Architect](https://job-boards.greenhouse.io/anthropic/jobs/5227641008)
-- [Anthropic - Applied AI Architect, Public Sector](https://job-boards.greenhouse.io/anthropic/jobs/5227643008)
-- [Hibu - Applied AI Engineer](https://job-boards.greenhouse.io/hibu/jobs/4696330005)
-- [Ripple - Staff Software Engineer, GenAI Platform](https://job-boards.greenhouse.io/ripple/jobs/7918366)
-- [Snorkel AI - Applied AI Engineer, Federal](https://job-boards.greenhouse.io/snorkelai/jobs/5721276004)
-- [Addepar - Sr. Software Engineer, AI Platform](https://job-boards.greenhouse.io/addepar1/jobs/8479770002)
-- [Future - Applied AI Engineer](https://job-boards.greenhouse.io/future/jobs/4683133005)
-- [Komodo Health - Full-Stack AI Engineer](https://job-boards.greenhouse.io/komodohealth/jobs/8584991002)
-- [Medeloop - Staff AI Machine Learning Engineer](https://job-boards.greenhouse.io/medeloop/jobs/4236722009)
-- [Veeam - Staff AI Engineer](https://job-boards.greenhouse.io/veeamsoftware/jobs/4876895101)
-- [Capstone Investment Advisors - AI Engineer](https://job-boards.greenhouse.io/capstoneinvestmentadvisors/jobs/8453280002)
+- [Dataiku - Generative AI Engineer (UK)](https://job-boards.greenhouse.io/dataiku/jobs/5978968004)
+- [PhysicsX - Principal Agentic Engineer (UK)](https://job-boards.eu.greenhouse.io/physicsx/jobs/4804769101)
+- [Anaplan - Senior AI Engineer (UK)](https://job-boards.greenhouse.io/anaplan/jobs/8573871002?ref=employbl)
+- [Baringa - Senior Consultant, Forward Deployed AI Engineer (UK)](https://job-boards.eu.greenhouse.io/baringa/jobs/4869804101)
+- [Okta - Senior Forward Deployed Engineer, Okta for AI Agents (US)](https://www.okta.com/company/careers/okta-for-ai-agents/senior-forward-deployed-engineer-okta-for-ai-agents-7961356/)
+- [ID.me - Staff Software Engineer, AI Agent Evaluations (US)](https://job-boards.greenhouse.io/idme/jobs/7766372003)
+- [PlayStation - AI Engineer (US)](https://job-boards.greenhouse.io/sonyinteractiveentertainmentglobal/jobs/6007946004)
+- [Pairwise - Network Infrastructure & AI Engineer (US)](https://job-boards.greenhouse.io/pairwiseviadelart/jobs/4694763005)
