@@ -94,7 +94,7 @@ Shortest path in a **weighted** graph (non-negative edges) via a priority queue 
 
 Keep the **B** highest-scoring partial sequences at each step (not just the single best like greedy, not all like exhaustive). Width B trades quality for compute.
 
-*Where:* LLM **decoding** — deterministic tasks (translation, structured generation) more than open-ended chat. See sampling (top-k/top-p/temperature) in [rag.md](rag.md) / [agentic-patterns.md](agentic-patterns.md).
+*Where:* LLM **decoding** — deterministic tasks (translation, structured generation) more than open-ended chat. See sampling (top-k/top-p/temperature) in [rag.md](rag.md) / [agentic-patterns.md](../practices/agentic-patterns.md).
 
 ---
 

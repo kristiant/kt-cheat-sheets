@@ -98,7 +98,7 @@ Point Gateway at a Lambda, an OpenAPI spec, or an MCP server; it exposes them as
 Lambda / OpenAPI / MCP server  ──►  AgentCore Gateway  ──►  agent tools (IAM or OAuth)
 ```
 
-> Gateway speaks **MCP**, so an agent reaches Gateway tools the same way it reaches any MCP server. See [agentic-patterns.md](agentic-patterns.md).
+> Gateway speaks **MCP**, so an agent reaches Gateway tools the same way it reaches any MCP server. See [agentic-patterns.md](../practices/agentic-patterns.md).
 
 ### Memory — persistent context
 

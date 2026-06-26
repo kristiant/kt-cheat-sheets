@@ -6,7 +6,7 @@
 
 **Typically used for:** Complex/multi-hop Q&A, multi-source knowledge (docs + SQL + web), and high-stakes answers where "retrieved the wrong thing" is unacceptable.
 
-> Classical one-shot RAG, chunking, embeddings, and retrieval techniques (dense/BM25/hybrid/rerank) are in [rag.md](rag.md). This sheet is the agentic layer on top. Examples use LangGraph — see [langgraph.md](langgraph.md), [agentic-patterns.md](agentic-patterns.md).
+> Classical one-shot RAG, chunking, embeddings, and retrieval techniques (dense/BM25/hybrid/rerank) are in [rag.md](rag.md). This sheet is the agentic layer on top. Examples use LangGraph — see [langgraph.md](langgraph.md), [agentic-patterns.md](../practices/agentic-patterns.md).
 
 ---
 
@@ -141,13 +141,13 @@ function checkAnswer(s: typeof State.State) {
 }
 ```
 
-> Always cap the loop (`tries`, or `recursionLimit` on invoke) — a grader that never passes will retrieve forever. See [agentic-patterns.md](agentic-patterns.md).
+> Always cap the loop (`tries`, or `recursionLimit` on invoke) — a grader that never passes will retrieve forever. See [agentic-patterns.md](../practices/agentic-patterns.md).
 
 ---
 
 ## Multi-agent RAG
 
-For broad systems, split into agents: a **router** delegates to domain-specific retriever agents (legal, billing, product), each with its own index, and a **synthesizer** merges answers. Use a supervisor (see [agentic-patterns.md](agentic-patterns.md)). Justified when sources are genuinely separate; otherwise one graded loop is simpler.
+For broad systems, split into agents: a **router** delegates to domain-specific retriever agents (legal, billing, product), each with its own index, and a **synthesizer** merges answers. Use a supervisor (see [agentic-patterns.md](../practices/agentic-patterns.md)). Justified when sources are genuinely separate; otherwise one graded loop is simpler.
 
 ---
 

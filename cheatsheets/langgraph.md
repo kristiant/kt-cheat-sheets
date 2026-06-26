@@ -6,7 +6,7 @@
 
 **Typically used for:** Tool-calling agents, multi-step workflows, human-in-the-loop flows, long-running agents, memory, retries, and cyclic reasoning loops.
 
-> **LangGraph is the orchestration layer over [LangChain](langchain.md)'s building blocks.** LangChain handles single-flow (`input → step → output`); LangGraph adds loops, branching, persistent state, and multi-agent flow. A node is usually just a LangChain Runnable or an `async (state) => ({...})` — so the runnable knowledge carries straight over. For higher-level *patterns* (reliability, cost, multi-agent topologies) see [agentic-patterns.md](agentic-patterns.md).
+> **LangGraph is the orchestration layer over [LangChain](langchain.md)'s building blocks.** LangChain handles single-flow (`input → step → output`); LangGraph adds loops, branching, persistent state, and multi-agent flow. A node is usually just a LangChain Runnable or an `async (state) => ({...})` — so the runnable knowledge carries straight over. For higher-level *patterns* (reliability, cost, multi-agent topologies) see [agentic-patterns.md](../practices/agentic-patterns.md).
 > Source: https://docs.langchain.com/oss/javascript/langgraph/overview
 
 ---

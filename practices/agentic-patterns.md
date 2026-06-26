@@ -189,7 +189,7 @@ agent.tool(searchTool);            // always in the prompt
 agent.deferredTool(githubTool);    // searchable + load-on-demand, absent until used
 ```
 
-> Loaded tools are rehydrated from message history, so the set survives suspend/resume. Keeps prompts small while exposing a large catalog — grounded in n8n's `@n8n/agents` (`runtime/deferred-tool-manager.ts`). LangChain **deepagents** ships the same idea as *skills* (progressively loaded capabilities). See [practices/agentic-products.md](../practices/agentic-products.md).
+> Loaded tools are rehydrated from message history, so the set survives suspend/resume. Keeps prompts small while exposing a large catalog — grounded in n8n's `@n8n/agents` (`runtime/deferred-tool-manager.ts`). LangChain **deepagents** ships the same idea as *skills* (progressively loaded capabilities). See [practices/agentic-products.md](agentic-products.md).
 
 ### Multi-agent — supervisor
 
@@ -326,7 +326,7 @@ await model.invoke(prompt, { signal: AbortSignal.timeout(10_000) });
 ```
 
 - **Circuit breaker** — after repeated failures, stop calling a dependency for a cooldown (fail fast). No LangChain primitive — wrap it (`opossum`).
-- **Idempotency** — make handlers safe to re-run via a dedup key; at-least-once queues and retries *will* double-invoke. See [aws-sqs.md](aws-sqs.md), [aws-lambda.md](aws-lambda.md).
+- **Idempotency** — make handlers safe to re-run via a dedup key; at-least-once queues and retries *will* double-invoke. See [aws-sqs.md](../cheatsheets/aws-sqs.md), [aws-lambda.md](../cheatsheets/aws-lambda.md).
 - **Dead-letter queue** — park repeatedly-failing inputs instead of retrying forever, so one poison message doesn't block the pipeline.
 - **Graceful degradation** — return a reduced-but-useful result on failure (cached answer, smaller model, "can't do that now") rather than an error.
 
@@ -372,9 +372,9 @@ const { category } = await classifier.invoke(input);   // typed + schema-valid �
 ```
 
 - **Guardrails** — validate input/output, check schemas, filter content around the model; make the *system* dependable despite a non-deterministic core.
-- **Grounding / citations** — answer only from supplied context and cite sources; the main lever against hallucination and it makes answers verifiable. See [rag.md](rag.md).
+- **Grounding / citations** — answer only from supplied context and cite sources; the main lever against hallucination and it makes answers verifiable. See [rag.md](../cheatsheets/rag.md).
 - **LLM-as-judge** — score one model's output with another against criteria; scalable eval and runtime quality gates where exact-match can't work.
-- **Eval harness** — a dataset + metrics in CI to catch regressions; prompts and models change silently otherwise. See [rag.md](rag.md) (Ragas).
+- **Eval harness** — a dataset + metrics in CI to catch regressions; prompts and models change silently otherwise. See [rag.md](../cheatsheets/rag.md) (Ragas).
 - **Hallucination detection** — flag unsupported claims (low logprobs, faithfulness check, self-consistency) before they reach users.
 
 ---
@@ -462,7 +462,7 @@ interface ObservationCursor {
 
 One line: observer cursor = "last message summarised"; observation log = the summaries; episodic cursor = "last summary indexed into long-term memory."
 
-> Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`); the same background-job shape appears as Mastra's processors/scorers and as summarization middleware in deepagents. See [practices/agentic-products.md](../practices/agentic-products.md).
+> Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`); the same background-job shape appears as Mastra's processors/scorers and as summarization middleware in deepagents. See [practices/agentic-products.md](agentic-products.md).
 
 ---
 

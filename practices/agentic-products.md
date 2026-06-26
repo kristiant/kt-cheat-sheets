@@ -220,7 +220,7 @@ Lifecycle events: `AgentStart`/`AgentEnd`, `TurnStart`/`TurnEnd`, `ToolExecution
 **Internal consumers** (not just user code):
 - **Stream mode** subscribes to tool/sub-agent events and turns them into `StreamChunk`s on the HTTP stream — the bridge between the runtime and the wire.
 - **Tools** receive an `emitEvent` hook in their context so platform tools can publish.
-- **Sidecars don't subscribe** — they're scheduled imperatively (see [agentic-patterns.md](../cheatsheets/agentic-patterns.md) sidecars); they only `emit` an `Error` with a `source` on failure.
+- **Sidecars don't subscribe** — they're scheduled imperatively (see [agentic-patterns.md](agentic-patterns.md) sidecars); they only `emit` an `Error` with a `source` on failure.
 
 The bus also **owns cancellation** (the `AbortController`), so `agent.abort()` and the subscriptions target the same run:
 

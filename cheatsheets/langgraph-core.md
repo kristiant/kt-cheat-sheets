@@ -6,7 +6,7 @@
 
 **Typically used for:** Custom agent control flow, multi-actor graphs, and anything needing loops, branching, persistent state, or human-in-the-loop.
 
-> Usage-level patterns are in [langgraph.md](langgraph.md) and [agentic-patterns.md](agentic-patterns.md); this sheet is the internals. Source: `@langchain/langgraph`.
+> Usage-level patterns are in [langgraph.md](langgraph.md) and [agentic-patterns.md](../practices/agentic-patterns.md); this sheet is the internals. Source: `@langchain/langgraph`.
 
 ---
 

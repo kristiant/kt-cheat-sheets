@@ -140,7 +140,7 @@ Design choices:
 
 Design choice: exact caches are cheap but brittle; **semantic caches** raise hit rate at the cost of a similarity threshold you must tune (too loose → wrong answers).
 
-> Grounded: LangChain `InMemoryCache`, LangGraph `cachePolicy`. Prompt-cache ordering in [agentic-patterns.md](../cheatsheets/agentic-patterns.md).
+> Grounded: LangChain `InMemoryCache`, LangGraph `cachePolicy`. Prompt-cache ordering in [agentic-patterns.md](agentic-patterns.md).
 
 ---
 

@@ -72,7 +72,7 @@ const llm = new ChatBedrockConverse({
 const res = await llm.invoke("Explain idempotency in one line.");
 ```
 
-> Use this in the [agentic-patterns.md](agentic-patterns.md) / [rag.md](rag.md) examples to swap a hosted model for a Bedrock-backed one — the rest of the graph is identical.
+> Use this in the [agentic-patterns.md](../practices/agentic-patterns.md) / [rag.md](rag.md) examples to swap a hosted model for a Bedrock-backed one — the rest of the graph is identical.
 
 ---
 
