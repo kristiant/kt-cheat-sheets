@@ -202,6 +202,71 @@ await client.publish(`stream:${runId}`, token);
 
 ---
 
+## Patterns from production repos
+
+Real Redis usage from locally-studied codebases — the key schemas and gotchas that don't show up in tutorials.
+
+### Single-leader election (n8n scaling)
+
+Multi-instance deployments elect one leader to run singletons (cron, queue housekeeping). Claim with `NX` + a TTL; renew only if you still hold it (Lua), so a dead leader's key expires and another instance takes over.
+
+```ts
+// claim — only succeeds if no leader exists; TTL means a crashed leader auto-releases
+const ok = (await client.set("n8n:leader", hostId, "EX", 15, "NX")) === "OK";
+// renew (cron) — extend TTL ONLY if this host is still the leader (atomic, Lua)
+await client.eval(
+  `if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('expire',KEYS[1],ARGV[2]) end`,
+  { keys: ["n8n:leader"], arguments: [hostId, "15"] },
+);
+```
+
+> Grounded: n8n's `leader-election-client.ts` (`SET … EX … NX` to claim, Lua to renew). Same shape as a distributed lock — a lock is just leadership over one resource (n8n's `collaboration:write-lock:${workflowId}`).
+
+### Pub/Sub as a cross-instance bus (n8n scaling)
+
+Beyond token streaming, pub/sub is how horizontally-scaled instances coordinate: a main publishes commands, workers subscribe and respond on a reply channel. Stateless fan-out — no instance needs to know who's listening.
+
+```ts
+// publisher (main): broadcast a command to all workers
+await client.publish("n8n.commands", JSON.stringify({ type: "reload-workflow", id }));
+// subscriber (worker): a DEDICATED connection (a subscribed conn can't run other commands)
+const sub = client.duplicate(); await sub.connect();
+await sub.subscribe("n8n.commands", (msg) => handle(JSON.parse(msg)));
+```
+
+> Grounded: n8n's `publisher.service.ts` / `subscriber.service.ts` — command, worker-response, and relay channels for multi-main/worker mode.
+
+### Thread-scoped state keys (LangGraph Redis checkpointer)
+
+Agent checkpoints key on the **conversation scope first**, with a sorted set tracking pending writes in order:
+
+```
+checkpoint:{threadId}:{checkpointNs}            → the state snapshot (hash)
+write_keys:{threadId}:{checkpointNs}:{ckptId}   → a ZSET of pending write keys, ordered
+```
+
+> Grounded: `@langchain/langgraph-checkpoint-redis`. ZSETs aren't just leaderboards — here they keep tool-writes ordered within a checkpoint. See [ai-persistence-patterns.md](../practices/ai-persistence-patterns.md).
+
+### ⚠️ Glob injection across tenants
+
+If a **caller-controlled value** (a `threadId`, tenant id, session id from request input) goes straight into a key *or* a `KEYS`/`SCAN MATCH` pattern, a value of `"*"` becomes a wildcard. `KEYS "checkpoint:*:*"` then enumerates **every tenant**, and a delete-by-pattern wipes the database (CWE-943).
+
+```ts
+// validate caller-shaped key parts before embedding them
+const GLOB = /[*?[\]\\]/;
+function assertSafeKeyPart(field: string, v: string) {
+  if (GLOB.test(v)) throw new Error(`unsafe Redis key part in "${field}": ${v}`);
+}
+assertSafeKeyPart("threadId", threadId);
+await client.hGetAll(`checkpoint:${threadId}:${ns}`);
+```
+
+> Grounded: the LangGraph Redis saver rejects `* ? [ ] \` in any caller-influenced key field for exactly this reason (`:` is allowed — it's a literal delimiter, not a glob char).
+
+> **Client note:** n8n uses **ioredis** (variadic args: `set(k, v, "EX", ttl, "NX")`); this sheet otherwise uses **node-redis** (options object: `set(k, v, { EX: ttl, NX: true })`). Same commands, different argument style.
+
+---
+
 ## Practical recipes
 
 **Cache-aside an embedding (don't re-embed the same text):**
