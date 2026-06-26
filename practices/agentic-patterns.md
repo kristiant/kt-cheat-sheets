@@ -355,7 +355,11 @@ const hedge = (fn, ms) => Promise.race([fn(), delay(ms).then(fn)]);
 - **Semantic caching** — cache keyed by embedding similarity, not exact string; "what's your refund policy?" and "how do refunds work?" hit the same entry.
 - **Batching** — group inputs into one `.batch()` call for throughput when latency isn't critical (offline/async).
 - **Token budgeting** — track and cap tokens across prompt + retrieved context + history; budget so docs don't crowd out the question.
-- **Context compaction** — summarise or trim old conversation turns into a running summary instead of dropping them when the window fills.
+- **Conversation management (context trimming)** — shrink the history sent to the model each turn to stay under the context/token limit. It's **in-memory, before the call — distinct from persistence** (the store keeps the full thread; the window only shapes what the model sees). Two strategies:
+  - **Sliding window** — keep the last *N* messages, drop older ones. Cheap and simple; lossy (old context is gone).
+  - **Summarizing** — compress older messages into a running summary, preserving the most recent *N* verbatim. Keeps long-range context at the cost of extra summary LLM calls.
+
+  > Grounded: Strands' `SlidingWindowConversationManager` / `SummarizingConversationManager` (used by AWS Blocks `bb-agent`); sliding-window is the default. Different from the durable [sidecar observation log](#sidecar-llm-calls) — that's long-term derived memory; this is per-turn trimming.
 
 ---
 
