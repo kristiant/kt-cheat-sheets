@@ -533,6 +533,22 @@ import * as z from "zod/mini";
 
 > Zod 4 documents separate `zod`, `zod/mini`, and `zod/v4/core` packages for app and library use.
 
+### StandardSchema — accept any validator (Zod / Valibot / ArkType)
+
+Zod implements the [Standard Schema](https://standardschema.dev) spec (`@standard-schema/spec`). A *library* should type its schema params as `StandardSchemaV1`, not `z.ZodType` — then users can pass Zod, Valibot, or ArkType, and the lib stays validator-agnostic.
+
+```ts
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+
+function defineStore<T>(opts: { schema?: StandardSchemaV1<T> }) { /* … */ }
+defineStore({ schema: z.object({ name: z.string() }) });   // a Zod schema satisfies it
+
+// validate via the standard interface (sync or async)
+const r = await schema["~standard"].validate(input);   // { value } | { issues }
+```
+
+> Grounded: AWS Blocks `KVStore` validates values against any `StandardSchemaV1`. For your own code use `z.infer` directly; reach for `StandardSchemaV1` when publishing a library that shouldn't force Zod on consumers.
+
 ---
 
 ## Tips

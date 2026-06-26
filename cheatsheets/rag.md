@@ -220,6 +220,8 @@ const retriever = new ParentDocumentRetriever({
 
 > **Sentence-window** is the same idea at finer grain: match on single sentences, return the few sentences around each hit.
 
+> Common enough to be a built-in: AWS Blocks' knowledge-base block ships **`hierarchical` chunking** (parent ~1500 / child ~300 tokens) as a first-class strategy alongside `fixed`/`semantic`. If you're hand-rolling parent/child, those are sane default sizes.
+
 ### Contextual retrieval
 
 Before embedding, prepend an LLM-generated blurb situating each chunk in its document ("This is from the 2024 refund policy, section 3…"). Sharply improves retrieval on chunks that are ambiguous out of context.

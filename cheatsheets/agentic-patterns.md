@@ -259,6 +259,8 @@ Static alternative — pause before specific nodes at compile time:
 graph.compile({ checkpointer, interruptBefore: ["tools"] });
 ```
 
+> **Production HITL details** (from AWS Blocks `bb-agent`): give each interrupt a **`name`** so resume payloads match by id (`resume(id, [{ interruptId, approved }])`); offer two styles — a tool-level **`needsApproval`** flag *or* a general `interrupt()` call inside the handler; and expose **`getPendingInterrupts(conversationId)`** so a reloaded client can recover unanswered prompts instead of dropping them.
+
 ### Streaming
 
 Stream step progress *and* tokens. Pick the mode to fit the UI.

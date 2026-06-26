@@ -40,6 +40,27 @@ async function exportPdf(doc) {
 }
 ```
 
+### Conditional exports — swap implementation per environment
+
+`package.json` `exports` can resolve the *same import* to different files via **custom conditions** — the runtime/bundler picks the branch. This lets one `import { KVStore }` be an in-memory mock locally, CDK constructs at synth, and AWS SDK calls in production, with zero changes at the call site.
+
+```jsonc
+{
+  "exports": {
+    ".": {
+      "browser": "./dist/index.browser.js",
+      "cdk":         "./dist/index.cdk.js",     // custom condition
+      "aws-runtime": "./dist/index.aws.js",     // custom condition
+      "default":     "./dist/index.mock.js"     // local-dev fallback
+    }
+  }
+}
+```
+
+Consumers opt a condition in via the resolver (`node --conditions=aws-runtime`, or a bundler `conditions` setting). The API in `index.ts` is identical across branches; one file per environment (`index.mock.ts` / `index.cdk.ts` / `index.aws.ts`).
+
+> Grounded in [AWS Blocks](https://github.com/aws-devtools-labs/aws-blocks) — every block ships `mock`/`cdk`/`aws` entries so `new KVStore(...)` is an in-memory store in dev and a DynamoDB table in prod. ⚠️ Branches must stay behaviourally identical — enforce with **parity tests** (see [jest-vitest.md](jest-vitest.md)).
+
 ---
 
 ## Async patterns

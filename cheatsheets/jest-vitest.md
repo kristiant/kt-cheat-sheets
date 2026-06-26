@@ -146,6 +146,31 @@ vi.useRealTimers();
 expect(buildPrompt(context)).toMatchSnapshot();
 ```
 
+### Parity tests — local mock ≡ real implementation
+
+When you ship an in-memory/local impl alongside the real one (a dev mock of a DB/queue/LLM), run the **same test suite against both** so behaviour can't diverge. The subtle failures are validation *order* and *error types* — if the mock throws a different error than prod, code written against the mock breaks once deployed.
+
+```ts
+import { describe, it, expect } from "vitest";
+
+// one suite, run against each implementation
+for (const [name, KVStore] of [
+  ["mock", (await import("../src/index.mock")).KVStore],
+  ["aws",  (await import("../src/index.aws")).KVStore],
+] as const) {
+  describe(`KVStore (${name})`, () => {
+    it("validates the schema BEFORE the conditional check", async () => {
+      const store = new KVStore("t", { schema });
+      await store.put("k", valid);
+      // both impls must reject with the SAME error type, in the SAME order
+      await expect(store.put("k", invalid, { ifNotExists: true })).rejects.toThrow(ValidationFailed);
+    });
+  });
+}
+```
+
+> Grounded in [AWS Blocks](https://github.com/aws-devtools-labs/aws-blocks): each block's `parity.test.ts` pins the local mock to its DynamoDB/AWS counterpart — explicitly so "error-handling code written against the mock doesn't handle the wrong exception type in production." Pairs with [conditional exports](nodejs.md) (swap impl per environment).
+
 ---
 
 ## Practical recipes
