@@ -231,6 +231,33 @@ Rules of thumb:
 - **`type`** for anything `interface` can't express: unions, intersections, tuples, mapped/conditional, primitives, function types.
 - Plain object needing neither? Either works — pick one and stay consistent. (Declaration merging is `interface`-only; a feature for public types, a footgun for app types.)
 
+### The `types.ts` contract file
+
+A TS-specific idiom: a `types.ts` holding a module's **shapes, config contracts, and public-API types — with no runtime code**. The *what* (types) is split from the *how* (`agent.ts`: classes, functions, side effects). This works because TS types are **compile-time only and erase at runtime** — so the split costs nothing, unlike Java/Swift/ObjC where a type and its behaviour are one unit.
+
+```ts
+// types.ts — pure contract, erases to nothing in the JS output
+import type { Logger } from "./logger";          // type-only import (stripped at build)
+
+export interface AgentConfig<TContext = unknown> {
+  model: ModelConfig;
+  systemPrompt: string;
+  /** @internal */ logger?: Logger;
+}
+export type ConversationManagerConfig =          // discriminated union as a contract
+  | { strategy: "sliding-window"; windowSize?: number }
+  | { strategy: "summarizing"; summaryRatio?: number };
+```
+
+Why it earns its place:
+
+- **Breaks import cycles** — `agent.ts` ↔ `tools.ts` can both `import type` shared shapes without a circular *runtime* import (type-only imports have no runtime edge).
+- **One readable surface** — the module's public API in one file, instead of spelunking 600 lines of logic.
+- **Docs live on the contract** — JSDoc on `AgentConfig` documents the API where consumers look.
+- **Re-export hub** — `index.ts` can `export type * from "./types"` for consumers.
+
+> Enforce the type-only discipline with `verbatimModuleSyntax` (tsconfig) so `import type` / `export type` are explicit and definitely erased. Closest analogs elsewhere: a `*DTO.java`/`*Contract.java` (heavier), or a C/ObjC `.h` (but per-class, not a shared module).
+
 ### `readonly` + inline JSDoc
 
 Mark properties immutable-after-construction with `readonly`; put JSDoc on the *individual member* (e.g. `@internal` to hide one field), not the whole interface.
