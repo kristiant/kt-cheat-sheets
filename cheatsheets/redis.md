@@ -30,6 +30,50 @@ const v = await client.get("k");
 
 ---
 
+## Fundamentals (node-redis)
+
+**The client** is your connection to the server (from `createClient().connect()`). Every command is an `async` method on it — they all return promises, so `await` everything.
+
+**Core commands are flat on `client`; module commands are namespaced.** node-redis camelCases the raw Redis command name:
+
+```ts
+await client.set(...)        // SET
+await client.hSet(...)       // HSET   (HSET → hSet)
+await client.zAdd(...)       // ZADD
+await client.ft.search(...)  // FT.SEARCH  → search module, under client.ft
+await client.json.set(...)   // JSON.SET   → JSON module, under client.json
+```
+
+| Namespace | Module | Commands |
+|---|---|---|
+| *(flat on `client`)* | core Redis | `set`, `get`, `hSet`, `incr`, `rPush`, `zAdd`, `xAdd`, … |
+| `client.ft` | RediSearch (Query Engine) | `ft.create`, `ft.search` — full-text **and vector/KNN** |
+| `client.json` | RedisJSON | `json.set`, `json.get` |
+| `client.ts` | RedisTimeSeries | `ts.add`, `ts.range` |
+| `client.bf` / `client.cf` | Bloom / Cuckoo filter | `bf.add`, `bf.exists` |
+
+> ⚠️ **The module namespaces (`ft`/`json`/…) require Redis Stack** (or Redis 8+, which bundles the modules) — they error on vanilla Redis. Run `docker run -p 6379:6379 redis/redis-stack` for local dev with vector search.
+
+**Connection lifecycle** — make one client, reuse it everywhere (module scope), handle errors, and `duplicate()` only for a blocking subscriber:
+
+```ts
+const client = createClient({ url: process.env.REDIS_URL });
+client.on("error", (err) => logger.error("redis", err));   // attach BEFORE connect
+await client.connect();
+// … reuse `client` for the app's lifetime …
+await client.quit();   // graceful shutdown (flushes, closes)
+```
+
+**Key naming** — there are no tables; **convention is `:`-delimited namespaces** so keys are scannable and groupable. Put the scope first (the same isolation/deletion boundary idea as everywhere else):
+
+```
+chat:{threadId}        rl:{tenantId}:{minute}        doc:{id}        lock:{runId}
+```
+
+**Values are binary-safe** — strings, JSON (`JSON.stringify`), or raw bytes (vectors as a `Float32Array` buffer). **`EX`/`PX`/`EXPIRE`** set a TTL; `TTL key` checks remaining time; `PERSIST` removes it.
+
+---
+
 ## Core structures (quick ref)
 
 | Structure | Commands | AI use |
