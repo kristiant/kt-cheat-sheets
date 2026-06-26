@@ -189,7 +189,7 @@ agent.tool(searchTool);            // always in the prompt
 agent.deferredTool(githubTool);    // searchable + load-on-demand, absent until used
 ```
 
-> Loaded tools are rehydrated from message history, so the set survives suspend/resume. Keeps prompts small while exposing a large catalog — grounded in n8n's `@n8n/agents` (`runtime/deferred-tool-manager.ts`). See [practices/agentic-products.md](../practices/agentic-products.md).
+> Loaded tools are rehydrated from message history, so the set survives suspend/resume. Keeps prompts small while exposing a large catalog — grounded in n8n's `@n8n/agents` (`runtime/deferred-tool-manager.ts`). LangChain **deepagents** ships the same idea as *skills* (progressively loaded capabilities). See [practices/agentic-products.md](../practices/agentic-products.md).
 
 ### Multi-agent — supervisor
 
@@ -456,7 +456,7 @@ interface ObservationCursor {
 
 One line: observer cursor = "last message summarised"; observation log = the summaries; episodic cursor = "last summary indexed into long-term memory."
 
-> Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`). See [practices/agentic-products.md](../practices/agentic-products.md).
+> Mental model: the main agent is the worker; sidecars are background analysts that read the transcript and update notebooks the worker reads later. (Note: "observation" here = compressed memory, *not* ReAct's `Observation:` step.) Grounded in n8n's `@n8n/agents` (`runtime/observation-log-*`, `background-task-tracker.ts`, `scoped-memory-task-runner.ts`); the same background-job shape appears as Mastra's processors/scorers and as summarization middleware in deepagents. See [practices/agentic-products.md](../practices/agentic-products.md).
 
 ---
 

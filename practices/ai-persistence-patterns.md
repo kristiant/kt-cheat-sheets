@@ -99,7 +99,7 @@ interface ObservationCursor {
 
 `BaseStore` namespaces are hierarchical paths (`["memories", userId]`) — folder-like, and the unit of scoping/search.
 
-> Grounded: n8n observation-log / episodic memory + cursors, LangGraph `BaseStore`. See [agentic-products.md](agentic-products.md) (sidecar memory) and [langgraph-core.md](../cheatsheets/langgraph-core.md).
+> Grounded: n8n observation-log / episodic memory + cursors, LangGraph `BaseStore`, Mastra memory (working memory + **semantic recall**, scoped by `resourceId` → `threadId` with thread-owned-by-resource validation). See [agentic-products.md](agentic-products.md) (sidecar memory) and [langgraph-core.md](../cheatsheets/langgraph-core.md).
 
 ---
 
