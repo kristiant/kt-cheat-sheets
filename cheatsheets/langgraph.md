@@ -1100,6 +1100,102 @@ function Chat() {
 
 ---
 
+### `PostgresStore` — production cross-thread memory with vector search
+
+`PostgresStore` is the persistent counterpart to `InMemoryStore` — it survives process restarts and is shared across threads. Import from `@langchain/langgraph-checkpoint-postgres/store` (separate sub-path from the checkpointer).
+
+**Simple singleton with env-based fallback** (from [`includeHasan/polyrag`](https://github.com/includeHasan/polyrag)):
+
+```ts
+import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
+import { InMemoryStore } from "@langchain/langgraph-checkpoint";
+import type { BaseStore } from "@langchain/langgraph-checkpoint";
+
+let _store: BaseStore | undefined;
+let _pgStore: PostgresStore | undefined;
+
+export function getStore(): BaseStore {
+  if (_store) return _store;
+  if (process.env.NODE_ENV === "production") {
+    _pgStore = PostgresStore.fromConnString(process.env.DATABASE_URL!);
+    _store = _pgStore;
+  } else {
+    _store = new InMemoryStore();  // dev: non-persistent
+  }
+  return _store;
+}
+
+// One-time table creation — idempotent, safe to call on startup
+export async function setupStore() {
+  if (process.env.NODE_ENV !== "production") return;
+  if (!_pgStore) getStore();
+  await _pgStore!.setup();
+}
+
+// Graceful shutdown
+export async function closeStore() {
+  if (_pgStore) { await _pgStore.stop(); _pgStore = undefined; _store = undefined; }
+}
+
+// Typed helpers — namespace: ["user", userId, "preferences"]
+export async function putUserPreference(userId: string, key: string, value: unknown) {
+  await getStore().put(["user", userId, "preferences"], key, { value });
+}
+export async function getUserPreference<T>(userId: string, key: string): Promise<T | undefined> {
+  const item = await getStore().get(["user", userId, "preferences"], key);
+  return (item?.value as { value?: T })?.value;
+}
+```
+
+**Ensure-once setup (singleton promise)** (from [`Pritam-25/spendix-ai`](https://github.com/Pritam-25/spendix-ai)):
+
+```ts
+const memoryStore = PostgresStore.fromConnString(process.env.DATABASE_URL!);
+let storeReady: Promise<void> | null = null;
+
+export function ensureMemoryStoreReady() {
+  if (!storeReady) {
+    storeReady = memoryStore.setup().catch((err) => { storeReady = null; throw err; });
+  }
+  return storeReady;
+}
+```
+
+**With vector embeddings for semantic search** (from [`codersgyan/codersgpt-genai`](https://github.com/codersgyan/codersgpt-genai)):
+
+```ts
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
+
+const store = PostgresStore.fromConnString(process.env.DATABASE_URL!, {
+  index: {
+    dims: 1536,               // embedding dimensions
+    embed: new OpenAIEmbeddings({ model: "text-embedding-3-small" }),
+  },
+});
+await store.setup();
+// store.search(namespace, { query: "user's intent" }) now uses vector similarity
+```
+
+**With connection-pool options and custom schema** (from [`fancyboi999/Loomic`](https://github.com/fancyboi999/Loomic)):
+
+```ts
+const store = new PostgresStore({
+  connectionOptions: {
+    connectionString: process.env.DATABASE_URL!,
+    max: 3,                         // keep pool small on serverless/edge DB
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+  },
+  schema: "langgraph",              // custom PG schema for namespace isolation
+});
+await store.setup();
+```
+
+---
+
 ### `Send` as a dispatcher — LLM writes `next` field, generic router dispatches
 
 From [`langchain-ai/open-canvas`](https://github.com/langchain-ai/open-canvas) (5.5k stars, production chat+editor):
@@ -1829,3 +1925,7 @@ await graph.invoke({ messages: [new HumanMessage(userMessage)], maxToolRounds: 5
 | [`Ajitesh1405/knot`](https://github.com/Ajitesh1405/knot) | — | Typed discriminated-union interrupt payloads; multi-step approve→redraft→approve loop; NestJS integration |
 | [`langchain-ai/open-canvas`](https://github.com/langchain-ai/open-canvas) | 5.5k | Real production app (chat+editor). `Send(state.next, state)` dispatcher; dual message lists (`messages` vs `_messages`); per-assistant `BaseStore` reflections; `withConfig({ runName })` for tracing |
 | [`DimiMikadze/orca`](https://github.com/DimiMikadze/orca) | 1.3k | LinkedIn profile analysis agent. `createAgent` with `tool()` helpers, tool-result caching pattern, structured Zod output schema |
+| [`includeHasan/polyrag`](https://github.com/includeHasan/polyrag) | — | Full `PostgresStore` abstraction: env-based prod/dev fallback, typed preference helpers, `store.stop()` on shutdown |
+| [`codersgyan/codersgpt-genai`](https://github.com/codersgyan/codersgpt-genai) | 4 | `PostgresStore` with vector embeddings (`index: { dims, embed }`) for semantic memory search |
+| [`fancyboi999/Loomic`](https://github.com/fancyboi999/Loomic) | — | `PostgresStore` with connection pool options and custom `schema:` for namespace isolation |
+| [`xpert-ai/xpert`](https://github.com/xpert-ai/xpert) | 412 | Enterprise AI platform. Custom `ToolNode` with `setContextVariable`; `isCommand`+`isGraphInterrupt` in tool error handler; `dispatchCustomEvent` for tool errors; Plan Mode middleware |
