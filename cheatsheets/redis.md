@@ -204,7 +204,7 @@ await client.publish(`stream:${runId}`, token);
 
 ## Patterns from production repos
 
-Real Redis usage from locally-studied codebases — the key schemas and gotchas that don't show up in tutorials.
+Real key schemas and gotchas from production codebases (n8n, LangGraph) that tutorials skip.
 
 ### Single-leader election (n8n scaling)
 
