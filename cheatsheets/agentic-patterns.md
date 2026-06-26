@@ -214,6 +214,8 @@ Peer agents pass control to each other (no central router) via handoff tools. Us
 
 > **Pick:** supervisor for clear delegation/hierarchy; swarm for fluid peer handoffs. Start single-agent — add agents only when one agent's tool list gets unwieldy or domains genuinely separate.
 
+> **Handoff vs agent-as-tool** (OpenAI Agents SDK names this well): a **handoff** *transfers control* — the conversation continues in the other agent; **agent-as-tool** *calls and returns* — the parent gets the result and stays in charge. Supervisor/sub-agent delegation is usually agent-as-tool; swarm is handoff. Choose by whether the parent should regain control.
+
 ---
 
 ## Harness layer
@@ -277,6 +279,8 @@ await app.invoke(input, { recursionLimit: 25 });   // runaway-loop guard (defaul
 - **`recursionLimit`** caps total node steps — the backstop against an agent that never stops.
 - **Retries** — set `retryPolicy` on a node for flaky tools/APIs.
 - **Errors** — throw inside a node to halt; catch and write an error field to route to a recovery node instead.
+
+> **Declarative loop control** — outside LangGraph, the Vercel AI SDK bounds the tool loop with `stopWhen: stepCountIs(5)` (or a custom predicate) and `prepareStep` to rewrite model/messages/tools between iterations. Same intent as `recursionLimit` + a router, expressed as config. (OpenAI Agents SDK does it inside `Runner.run`.)
 
 ### Subgraphs
 

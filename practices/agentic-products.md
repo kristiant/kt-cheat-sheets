@@ -6,7 +6,7 @@
 
 **Typically used for:** Agent platforms, internal agent runtimes, anything that runs *other people's* agents and must be controllable, resumable, and observable.
 
-> Primarily grounded in [n8n](https://github.com/n8n-io/n8n)'s `@n8n/agents` (built on the [Vercel AI SDK](https://sdk.vercel.ai)); file paths below are relative to that package. Corroborated against other open-source ADKs — [Mastra](https://github.com/mastra-ai/mastra), [LangGraph](https://github.com/langchain-ai/langgraphjs), and LangChain [deepagents](https://github.com/langchain-ai/deepagentsjs) — in [Patterns across frameworks](#patterns-across-frameworks) so the patterns aren't one library's idiosyncrasies.
+> Primarily grounded in [n8n](https://github.com/n8n-io/n8n)'s `@n8n/agents` (built on the [Vercel AI SDK](https://sdk.vercel.ai)); file paths below are relative to that package. Corroborated against the industry-leading ADKs — [OpenAI Agents SDK](https://github.com/openai/openai-agents-js), [Vercel AI SDK](https://ai-sdk.dev), [Mastra](https://github.com/mastra-ai/mastra), [LangGraph](https://github.com/langchain-ai/langgraphjs), and LangChain [deepagents](https://github.com/langchain-ai/deepagentsjs) — in [Patterns across frameworks](#patterns-across-frameworks) so the patterns aren't one library's idiosyncrasies.
 
 ---
 
@@ -264,27 +264,31 @@ These all attach through the same builder/runtime seam rather than being bolted 
 
 ## Patterns across frameworks
 
-The same patterns recur across open-source ADKs — strong evidence they're inherent to the problem, not n8n's idiosyncrasies:
+The same patterns recur across the industry-leading ADKs — strong evidence they're inherent to the problem, not n8n's idiosyncrasies:
 
-| Pattern | n8n `@n8n/agents` | Mastra | LangGraph / deepagents |
-|---|---|---|---|
-| Suspend / resume + HITL | branded suspend + `CheckpointStore` | workflow `suspend()` + storage | `interrupt()` + checkpointer |
-| Memory layers | working + observation-log + episodic | working memory + **semantic recall** | `BaseStore` + checkpointer |
-| Sub-agents | `delegate_subagent` (inline/maxChildren) | agents-as-tools / networks | `subagents` (deepagents), supervisor |
-| Guardrails | input/output `Guardrail` builders | **processor pipeline** + tripwire | middleware (deepagents) |
-| Tracing/cost | AI SDK telemetry + catalog pricing | OTel observability + scorers | LangSmith |
-| Planning scratchpad | `write_todos` tool | — | todos middleware (deepagents) |
+| Pattern | n8n `@n8n/agents` | Vercel AI SDK | OpenAI Agents SDK | Mastra | LangGraph / deepagents |
+|---|---|---|---|---|---|
+| The loop | hand-rolled `MAX_LOOP_ITERATIONS` | `stopWhen` + `stepCountIs` | `Runner.run` | agent loop | Pregel supersteps |
+| Suspend / resume + HITL | branded suspend + `CheckpointStore` | tool-approval | interruptions | workflow `suspend()` | `interrupt()` + checkpointer |
+| Memory | working + observation-log + episodic | — | **sessions** (auto history) | working + **semantic recall** | `BaseStore` + checkpointer |
+| Multi-agent | `delegate_subagent` | — | **handoffs** + agents-as-tools | agents-as-tools / networks | `subagents`, supervisor |
+| Guardrails | input/output `Guardrail` | — | **parallel** input/output guardrails | **processor pipeline** + tripwire | middleware (deepagents) |
+| Tracing | AI SDK telemetry + cost catalog | OTel | **built-in tracing** | OTel + scorers | LangSmith |
+| Planning scratchpad | `write_todos` | — | — | — | todos middleware (deepagents) |
 
 Views other ADKs add that are worth stealing:
 
-- **Guardrails as a processor pipeline (Mastra).** Instead of standalone guardrail objects, Mastra runs `processInput` / `processOutputStream` / `processOutputResult` processors around the model, each able to `abort()` (a "tripwire"). Composable input/output middleware beats one-off checks — the same insight as deepagents composing agents from ordered **middleware** layers (deterministic ordering).
-- **Workflows vs agents as distinct primitives (Mastra / LangGraph).** An *agent* is a model-driven loop; a *workflow* is a durable, explicit graph of steps (`createStep().then().branch().parallel()`, suspendable). Use a workflow when the control flow is known and you want determinism + durability; an agent when the model must decide. Many products need both.
-- **Two-level memory scope: `resourceId` + `threadId` (Mastra).** A *thread* is one conversation; a *resource* is the user/tenant that owns many threads. Validating thread-owned-by-resource is the multi-tenancy guard. **Semantic recall** (embed past messages, retrieve relevant ones) sits alongside working memory. See [ai-persistence-patterns.md](ai-persistence-patterns.md).
-- **Pluggable workspace backend (deepagents).** The agent's "filesystem" is an abstraction (`StateBackend` default; swap to real FS, an object store, or a sandbox like Daytona/Modal) — the same dependency-inversion idea as the `CheckpointStore` seam, applied to the agent's working files.
-- **Middleware-composed agents (deepagents).** `createDeepAgent({ middleware, subagents, backend, tools })` builds the agent by layering middleware in a deterministic order — an alternative to n8n's subclass-`build()` injection for attaching cross-cutting behaviour.
+- **Declarative loop control (Vercel AI SDK).** Rather than a hard `MAX_LOOP_ITERATIONS`, the loop is bounded by `stopWhen` (e.g. `stepCountIs(5)`, or a custom predicate), and `prepareStep` lets you rewrite model/messages/tools *between* iterations. The whole agent loop becomes config, not bespoke code — n8n's runtime is effectively a hand-rolled version of this.
+- **Handoffs vs agents-as-tools (OpenAI Agents SDK).** Two distinct delegation shapes: a **handoff** *transfers control* to another agent (the conversation continues there), while **agent-as-tool** *calls and returns* (the parent stays in charge). n8n's `delegate_subagent` is agent-as-tool; a supervisor that routes is closer to handoff. Pick by whether the parent should regain control.
+- **Guardrails run in parallel and fail fast (OpenAI Agents SDK).** Input/output guardrails execute *alongside* the agent and trip the run the moment a check fails — same "tripwire" idea as Mastra's processor `abort()`. Guardrails are a run-level concern, not inline `if` checks.
+- **Sessions = automatic history (OpenAI Agents SDK).** The runner persists and replays conversation history for you, keyed by session — so the app doesn't hand-thread `messages[]` each turn. n8n/LangGraph do this via thread-scoped memory/checkpoints; the ergonomic lesson is to make history automatic.
+- **Workflows vs agents as distinct primitives (Mastra / LangGraph).** An *agent* is a model-driven loop; a *workflow* is a durable, explicit graph of steps (`createStep().then().branch().parallel()`, with `suspendSchema`/`resumeSchema` per step). Use a workflow when control flow is known and you want determinism + durability; an agent when the model must decide. Many products need both.
+- **Two-level memory scope: `resourceId` + `threadId` (Mastra).** A *thread* is one conversation; a *resource* is the user/tenant owning many threads. Validating thread-owned-by-resource is the multi-tenancy guard. **Semantic recall** (embed past messages, retrieve relevant ones) sits alongside working memory. See [ai-persistence-patterns.md](ai-persistence-patterns.md).
+- **Composite / virtual-filesystem backend (deepagents).** The agent's "filesystem" is pluggable (`StateBackend` default; FS, object store, or a sandbox like Daytona/Modal) — and a `CompositeBackend` **mounts different stores at different paths** (`/memories/`→cross-thread store, `/work/`→ephemeral state). Same dependency-inversion as the `CheckpointStore` seam, applied to the agent's working files.
+- **Capability-as-middleware (deepagents).** `createDeepAgent({ middleware, subagents, backend, tools })` composes the agent from ordered, named middleware — `fs`, `subagents`, `skills`, `summarization`, `hitl`, `memory`, `cache`, `patch_tool_calls`. Each cross-cutting concern is a layer with deterministic ordering, vs n8n's subclass-`build()` injection.
 - **A2A — agent-to-agent protocol (Mastra `a2a`, deepagents ACP).** Multi-agent over a wire protocol, so a sub-agent can be a *remote* service, not just an in-process call — the network-boundary version of sub-agent delegation.
 
-> **Grounded:** Mastra `packages/core/src/{processors,workflows,memory}`, deepagents `libs/deepagents/src/{agent,backends,middleware}`, plus a production supervisor topology in [AWS's multi-agent Bedrock AgentCore guidance](https://github.com/aws-solutions-library-samples) (supervisor + specialist agents).
+> **Grounded:** [OpenAI Agents SDK (JS)](https://github.com/openai/openai-agents-js) (handoffs, parallel guardrails, sessions, tracing, `Runner`), [Vercel AI SDK 5](https://ai-sdk.dev) (`stopWhen`/`stepCountIs`/`prepareStep`), Mastra `packages/core/src/{processors,workflows,memory}`, deepagents `libs/deepagents/src/{agent,backends,middleware}`, and a production supervisor topology in AWS's multi-agent Bedrock AgentCore guidance (supervisor + specialist agents).
 
 ---
 
