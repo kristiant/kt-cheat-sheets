@@ -201,6 +201,36 @@ await store.similaritySearch("auth bug", 4, { product: "portal", year: 2024 });
 
 ---
 
+## What vector search can't do: temporal & relational reasoning
+
+Embeddings score **semantic similarity** — not *time* and not *relationships between entities*. The moment a query depends on either, dense top-k returns plausible-but-wrong chunks. This is the most common wall enterprise RAG hits.
+
+**Temporal reasoning** — reasoning about *when*: ordering, recency, and what was true *as of* a date. The same fact has different truth values at different times (bitemporal: when it was *valid* vs. when it was *ingested*), and cosine similarity has no notion of that.
+
+| Query | Needs | Why naive RAG fails |
+|---|---|---|
+| "Our **current** refund policy?" | latest version, ignore superseded | every version is near-identical in vector space; retrieves a mix |
+| "Revenue **before** the acquisition" | order events, filter a window | "before"/"after" carry no semantic signal |
+| "Who was PM **when** X launched?" | fact valid at a point in time | returns the *most recent* PM — wrong for that date |
+
+**Relational reasoning** — multi-hop questions over connected entities (a graph traversal, not a lookup):
+
+> "Which customers were hit by the outage caused by the dependency team X owns?"
+> (customer → outage → dependency → team — four hops)
+
+Dense retrieval grabs chunks *mentioning* those entities but can't *follow the edges*.
+
+### Fixes
+
+- **Metadata / temporal filtering** — store `valid_from`/`valid_to`, `version`, `timestamp` per chunk; filter before vector search. Cheapest first move (see [Metadata filtering](#metadata-filtering-self-query) above). Handles "current" and "as of 2024".
+- **Decomposition** — break the multi-hop question into sub-questions, retrieve each, combine (see [Decomposition](#decomposition)). Handles simple relational chains without a graph.
+- **Knowledge graph / GraphRAG** — build an entity-relationship graph so traversal replaces guessing. [Microsoft GraphRAG](https://github.com/microsoft/graphrag) for relational; [Graphiti](https://github.com/getzep/graphiti) (Zep) for **bitemporal** graphs that track when each fact became valid/invalid, so an agent can query "as of date X".
+- **Text-to-SQL** — if the time/relation data is already relational, query it directly (see [Text-to-SQL](#text-to-sql)) instead of forcing it through embeddings. Postgres 19's [SQL/PGQ](postgres.md#graph-queries--sqlpgq-postgres-19) adds graph pattern-matching over relational tables (fixed-depth, Beta as of mid-2026) — relational hops without a separate graph DB.
+
+> Rule of thumb: if the answer depends on *when* or on *following a relationship*, a filter, a graph, or SQL belongs in front of the vector search — not in place of it.
+
+---
+
 ## Smarter indexing
 
 ### Parent-document (small-to-big)
@@ -351,6 +381,8 @@ await store.similaritySearch(query, 4, { tenantId });
 | Answer ignores good context | lost-in-the-middle / too much context | reorder, trim, fewer chunks |
 | Confident wrong answers | weak prompt grounding | "only from context" + "I don't know" + citations |
 | Cross-tenant leakage | no metadata filter | filter by tenant before vector search |
+| Returns stale/superseded facts | no temporal awareness | filter by `valid_from`/`valid_to` or version; bitemporal graph |
+| Can't answer multi-hop "X caused by Y owned by Z" | dense lookup can't traverse relations | decomposition, GraphRAG, or text-to-SQL |
 
 ## Tips
 
