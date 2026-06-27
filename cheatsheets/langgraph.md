@@ -227,6 +227,40 @@ await graph.invoke(
 
 > LangGraph documents short-term memory as part of agent state and long-term memory for user/application data.
 
+## Inspecting & editing state
+
+With a checkpointer + `thread_id`, you can read, replay, and rewrite a thread's state. All three take the thread config.
+
+```ts
+const config = { configurable: { thread_id: "user-123" } };
+
+// current snapshot
+const snap = await graph.getState(config);
+snap.values;    // the channel values (the state)
+snap.next;      // node names that would run next ([] = done)
+snap.tasks;     // pending tasks (incl. interrupts)
+snap.config;    // includes the checkpoint_id of THIS snapshot
+snap.metadata;  // step, source, writes
+
+// full history — newest first
+for await (const s of graph.getStateHistory(config)) {
+  console.log(s.config.configurable.checkpoint_id, s.values);
+}
+
+// manually write state (e.g. fix a bad turn); asNode = whose update this looks like
+await graph.updateState(config, { messages: [new HumanMessage("corrected")] }, "agent");
+```
+
+**Time-travel / fork** — pass a past `checkpoint_id` to resume from there (re-running diverges into a new branch):
+
+```ts
+await graph.invoke(input, {
+  configurable: { thread_id: "user-123", checkpoint_id: pastSnapshot.config.configurable.checkpoint_id },
+});
+```
+
+> Internals (checkpoint shape, how snapshots are stored) are in [langgraph-core.md](langgraph-core.md).
+
 ## Interrupts / human review
 
 ```ts
