@@ -5,60 +5,70 @@ Window checked: 2026-06-22 to 2026-06-29
 
 ## Best Episodes This Week
 
-### Evals, Reasoning, and Agent Capability
+### Agents, Evals, And Control Loops
 
-- **No Priors**: [Why Traditional Benchmarks Fail Modern AI Models with OpenAI Research Scientist Noam Brown](https://traffic.megaphone.fm/PDP3897457969.mp3)
-  Company or guest: Noam Brown / OpenAI
-  Release date: 2026-06-26
-  Why it matters technically: Strong discussion of test-time compute, benchmark design, cost-aware evals, and multi-agent capability measurement.
-  Tags: `evals`, `reasoning`, `agents`, `OpenAI`, `AI-product`
+- **No Priors**: [Why Traditional Benchmarks Fail Modern AI Models with OpenAI Research Scientist Noam Brown](https://www.iheart.com/podcast/269-no-priors-artificial-inte-176326392/episode/why-traditional-benchmarks-fail-modern-ai-models-283359167/)  
+  Company/guest: Noam Brown, OpenAI  
+  Release date: 2026-06-26  
+  Why it matters: Strong signal on where static evals break down once models adapt via reasoning and test-time compute.  
+  Tags: `evals`, `reasoning`, `LLM-applications`, `OpenAI`
 
-### Agent Platforms and Open Ecosystems
+- **LangChain Max Agency**: [Why the best agents are simpler than you think](https://www.linkedin.com/pulse/why-best-agents-simpler-than-you-think-langchain-xygrc)  
+  Company/guest: Zack Reneau-Wedeen, Sierra  
+  Release date: 2026-06-25  
+  Why it matters: Useful corrective against overbuilt agent stacks, with emphasis on narrower workflows and production fit.  
+  Tags: `agents`, `AI-product`, `agent-design`, `LangChain`
 
-- **Latent Space**: [Why the Frontier Ecosystem must be Open — Matei Zaharia and Reynold Xin, Databricks](https://www.latent.space/p/databricks)
-  Company or guest: Matei Zaharia and Reynold Xin / Databricks
-  Release date: 2026-06-24
-  Why it matters technically: Useful signal on agent clouds, open ecosystems above coding agents, and how the data and platform layer may shift for production AI.
-  Tags: `agents`, `platform-engineering`, `databricks`, `infra`, `AI-product`
+- **Engineering Enablement by DX**: [Beyond the CLI: Agentic AI for async workloads and non-developers](https://getdx.com/podcast/beyond-the-cli-agentic-ai-for-async-workloads-and-non-developers/)  
+  Company/guest: Christopher Sanson and Madison Capps, Airbnb  
+  Release date: 2026-06-22  
+  Why it matters: Concrete discussion of where agentic systems extend beyond IDE copilots into asynchronous internal workflows.  
+  Tags: `agents`, `platform-engineering`, `developer-productivity`, `AI-product`
 
-### Security and Red-Teaming
+- **Latent Space**: [Red-Teaming after Mythos](https://www.latent.space/p/red-teaming-after-mythos)  
+  Company/guest: Zico Kolter and Matt Fredrikson, Gray Swan  
+  Release date: 2026-06-22  
+  Why it matters: High-signal security conversation on red-teaming frontier agents after the Firefox bug-finding cycle.  
+  Tags: `security`, `agents`, `red-teaming`, `verification`
 
-- **Latent Space**: [Red-Teaming after Mythos — Zico Kolter & Matt Fredrikson, Gray Swan](https://www.latent.space/p/gray-swan)
-  Company or guest: Zico Kolter and Matt Fredrikson / Gray Swan
-  Release date: 2026-06-22
-  Why it matters technically: Focuses on jailbreaks, indirect prompt injection, and practical red-team posture as agent systems become more exposed.
-  Tags: `security`, `red-teaming`, `agents`, `prompt-injection`, `AI-safety`
+### Production AI And Platform Rollout
+
+- **NVIDIA AI Podcast**: [Inside Instacart's AI-Powered Smart Shopping Cart | Ep. 302](https://podcasts.apple.com/lc/podcast/inside-instacarts-ai-powered-smart-shopping-cart-nvidia/id1186480811?i=1000774058193)  
+  Company/guest: Instacart  
+  Release date: 2026-06-24  
+  Why it matters: Practical deployment story for embodied retail AI, inference at the edge, and production UX constraints.  
+  Tags: `infra`, `deployment`, `AI-product`, `edge`
 
 ## Worth Skimming
 
-### Structured Data and Enterprise ML
+- **Engineering Enablement by DX**: [The future of engineering at Nationwide, Comcast, TD, and HPE](https://getdx.com/podcast/the-future-of-engineering-at-nationwide-comcast-td-and-hpe/)  
+  Company/guest: Nationwide, Comcast, TD, HPE  
+  Release date: 2026-06-22  
+  Why it matters: Broader than a single stack, but useful for tracking how large engineering orgs are operationalizing AI-enabled delivery.  
+  Tags: `platform-engineering`, `developer-productivity`, `AI-adoption`
 
-- **Software Engineering Daily**: [Foundation Models for Structured Data](https://softwareengineeringdaily.com/2026/06/23/foundation-models-for-structured-data/)
-  Company or guest: Jure Leskovec / Kumo.AI
-  Release date: 2026-06-23
-  Why it matters technically: Relevant if you care about bringing foundation-model techniques into relational and tabular enterprise systems.
-  Tags: `ML-platforms`, `databases`, `structured-data`, `enterprise-AI`
+- **InfoQ Podcast**: [How eBPF Empowers Developers to Observe inside the Linux Kernel in a Safe and Unintrusive Way](https://www.infoq.com/podcasts/ebpf-observe-linux-kernel-safe-unintrusive-way/)  
+  Company/guest: Liz Rice  
+  Release date: 2026-06-22  
+  Why it matters: Not AI-specific, but strong infra signal for low-overhead observability and kernel-level debugging.  
+  Tags: `observability`, `infra`, `security`, `linux`
 
 ## No New Relevant Episodes Seen
 
-- **OpenAI Podcast**: official feed checked; latest episode was 2026-06-16, outside the window.
-- **AI Engineering Podcast**: official site checked; latest visible episode was 2026-01-27, outside the window.
-- **Kubernetes Podcast from Google**: official RSS checked; latest episode was 2026-06-12, outside the window.
-- **Google SRE Prodcast**: official RSS checked; latest episode was 2026-06-16, outside the window.
-- **a16z AI / AI + a16z**: site checked; no current-window episode surfaced.
-- **Thoughtworks Technology Podcast**: podcast landing page checked; no current-window engineering-relevant release surfaced.
+- **OpenAI Podcast**: latest surfaced episode was [The OpenAI Podcast: Inside ChatGPT's hidden world](https://shows.acast.com/openai-podcast/episodes/the-openai-podcast-inside-chatgpts-hidden-world) on 2026-06-16, outside this window.
+- **Weights & Biases Gradient Dissent**: latest checked result was [The next phase of AI with Atlassian's Tamara Statz](https://wandb.ai/site/resources/podcast/the-next-phase-of-ai-with-atlassians-tamara-statz/) on 2026-06-16, outside this window.
+- **Datadog On**: checked current podcast index and did not see a new June 22 to June 29 episode in the visible feed.
+- **Humanloop High Agency**: no current-window episode surfaced in the checked sources.
 
 ## Week-over-week delta
 
-First run baseline. No prior automation memory exists yet.
-
-- New companies appearing this week: `OpenAI`, `Databricks`, `Gray Swan`, `Kumo.AI`.
-- Repeated themes from last week: baseline only, so no repeat comparison yet.
-- Topics increasing or decreasing in frequency: baseline only, but this week skewed toward `evals`, `agent platforms`, and `AI security`.
-- Notable absences from expected feeds: no current-window release found from `OpenAI Podcast`, `AI Engineering Podcast`, `Kubernetes Podcast from Google`, or `Google SRE Prodcast`.
+- New companies appearing this week: `Sierra`, `Airbnb`, `Gray Swan`, `Instacart`, `Nationwide`, `Comcast`, `TD`, `HPE`.
+- Repeated themes from last week: agent control structure, production harness quality, and the move from copilots to longer-running workflows.
+- Topics increasing in frequency: `evals`, `red-teaming`, and enterprise rollout patterns for agentic systems.
+- Topics decreasing in frequency: Anthropic-centered coding-agent discussion was less dominant than in the prior window.
+- Notable absences from expected feeds: no fresh signal surfaced from `OpenAI Podcast`, `Gradient Dissent`, `Humanloop High Agency`, `Weaviate Podcast`, or `Datadog On`.
 
 ## Feeds Checked
 
-- Official/company feeds: OpenAI Podcast, AI Engineering Podcast, Kubernetes Podcast from Google, Google SRE Prodcast.
-- High-signal third-party feeds: Latent Space, No Priors, Software Engineering Daily.
-- Additional pages checked for quiet feeds: a16z AI / AI + a16z, Thoughtworks Technology Podcast.
+- Official/company-owned: LangChain Max Agency, OpenAI Podcast, NVIDIA AI Podcast, Weights & Biases Gradient Dissent, Datadog On, Humanloop High Agency.
+- High-signal third-party: No Priors, Latent Space, Engineering Enablement by DX, InfoQ Podcast.
