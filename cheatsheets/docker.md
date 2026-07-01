@@ -10,9 +10,36 @@
 
 ## Mental model
 
-- **Image** = immutable snapshot (a class). **Container** = a running instance of an image (an object).
-- **Dockerfile** = recipe to build an image.
-- **Registry** = where images live (Docker Hub, GHCR, ECR).
+Think **compiled binary → running process**:
+
+- **Dockerfile** = the source/recipe.
+- **Image** = the output of `docker build` — a read-only, layered snapshot with the OS/runtime, your deps, and your code baked in. Like a compiled binary. *This is where the Node runtime, `node_modules`, etc. live.*
+- **Container** = a running (writable) instance of an image. Like a process of that binary. `docker run` creates one; running an image twice gives you two containers.
+- **Volume** = storage that lives *outside* the container, so data survives the container being stopped or deleted.
+- **Registry** = where images are stored/shared (Docker Hub, GHCR, ECR).
+
+```
+Dockerfile  --build-->  Image  --run-->  Container
+ (recipe)              (snapshot)        (live process)
+```
+
+Avoid the "class/instance" analogy — it implies the image is abstract. The image is the concrete build artifact; the container is it running.
+
+---
+
+## Run vs start (the beginner gotcha)
+
+- `docker run` **creates a NEW container** from an image (and starts it). Run it twice → two containers.
+- `docker start <container>` **re-starts an existing stopped one**, keeping its filesystem changes.
+
+Build-once, run-once flow:
+
+```bash
+docker build -t myapp:1.0 .                          # 1. build image from the Dockerfile
+docker run -d -p 3000:3000 --name myapp myapp:1.0    # 2. create + start a container
+docker stop myapp                                    # later: stop it
+docker start myapp                                   # bring the SAME one back (don't `run` again)
+```
 
 ---
 
@@ -20,7 +47,9 @@
 
 ```bash
 docker build -t myapp:1.0 .        # build image from Dockerfile in .
-docker run myapp:1.0               # run a container
+docker run myapp:1.0               # create + start a NEW container
+docker start <container>           # restart a STOPPED container (keeps its data)
+docker restart <container>         # stop then start
 docker ps                          # list running containers
 docker ps -a                       # list all (incl. stopped)
 docker images                      # list local images
@@ -63,6 +92,17 @@ docker build -t myapp:1.0 .
 docker run -p 3000:3000 myapp:1.0
 ```
 
+- `-t myapp:1.0` — **tag** (name the image `name:tag`; tag defaults to `latest`). Without it the image only gets a random ID.
+- `.` — the **build context**: the directory Docker sends to the build engine, so `COPY` can reach those files. `.` = current dir.
+
+**Do I rebuild on every code change?** Yes — the image is a snapshot, so a rebuild is needed to bake in changes. To avoid that loop in dev, bind-mount your source so the container sees edits live:
+
+```bash
+docker run -p 3000:3000 -v "$(pwd)":/app myapp:1.0   # /app = your WORKDIR
+```
+
+You still restart the container unless your app hot-reloads (e.g. `nodemon`).
+
 ## Common flags worth knowing
 
 ```bash
@@ -75,6 +115,21 @@ docker run \
   --name api \
   myapp:1.0
 ```
+
+| Flag | What it does |
+|---|---|
+| `-d` | **Detached** — run in the background instead of tying up your terminal. |
+| `-p 3000:3000` | **Publish** `host:container` — map a host port to the container's port so you can reach it. |
+| `-P` | Publish **all** `EXPOSE`d ports to random host ports. |
+| `-e KEY=val` | Set an **environment variable** inside the container. `--env-file .env` loads many. |
+| `-v host:container` | **Mount** a host dir or named volume into the container (persist/share data). |
+| `--name api` | Give the container a **stable name** instead of a random one. |
+| `--restart unless-stopped` | **Restart policy** — bring it back after a crash or reboot. |
+| `--rm` | **Auto-delete** the container when it exits (great for one-offs). |
+| `-it` | **Interactive + TTY** — keep stdin open and attach a terminal (for shells/REPLs). |
+| `--network <net>` | Attach to a specific **network** (e.g. to talk to other containers). |
+| `-w /path` | Set the **working directory** for the command. |
+| `-u <user>` | Run as a specific **user**/uid. |
 
 ---
 
