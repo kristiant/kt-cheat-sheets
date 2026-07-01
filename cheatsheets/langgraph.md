@@ -100,7 +100,54 @@ tenantId: Annotation<string>(),                          // last-write-wins (def
 tenantId: Annotation<string>({ reducer: (_p, n) => n }), // same thing, verbose
 ```
 
-Only write a reducer when merge semantics differ from replace — append `(p, n) => [...p, ...n]`, sum `(p, n) => p + n`, shallow-merge `(p, n) => ({ ...p, ...n })`, or `messagesStateReducer` for id-aware message lists. `default: () => …` is the part that earns its keep on plain channels: it gives the key a starting value before any node writes it (otherwise it's `undefined`). Some codebases still write the identity reducer out on purpose — to document "this channel is replaced wholesale" and make the merge unit-testable — but that's a style choice, not a requirement.
+Only write a reducer when merge semantics differ from replace:
+
+```ts
+reducer: (prev, next) => [...prev, ...next],   // append (accumulate a list)
+reducer: (prev, next) => prev + next,          // sum (running counter)
+reducer: (prev, next) => ({ ...prev, ...next }), // shallow-merge (patch an object)
+// messagesStateReducer                         // id-aware append/update for message lists
+```
+
+`default: () => …` is the part that earns its keep on plain channels: it gives the key a starting value before any node writes it (otherwise it's `undefined`). Some codebases still write the identity reducer out on purpose — to document "this channel is replaced wholesale" and make the merge unit-testable — but that's a style choice, not a requirement.
+
+**Reducer gotchas:**
+
+- **`prev` is the `default()` on the first write** — so an append reducer *needs* a `default: () => []`, or `[...prev]` throws on `undefined`. Every accumulating channel should pair its reducer with a matching default.
+- **Never mutate `prev`** — return a new value (`[...prev, x]`, not `prev.push(x)`). Reducers must be pure; the old value may still be referenced by a checkpoint.
+- **Parallel fan-in order isn't guaranteed.** When several nodes write the same channel in one superstep, the reducer folds them in unspecified order. Fine for sum/merge (commutative); for an append list where order matters, sort after the fact or carry an explicit index. See [Supersteps, fan-out & fan-in](#supersteps-fan-out--fan-in) below.
+
+### Reducer patterns
+
+LangGraph has no named "types" of reducer — a reducer is just `(prev, next) => merged`. But the patterns you write recur. ("Commutative" below is the maths property *order doesn't change the result* — the ones that survive parallel fan-in unharmed.)
+
+| Pattern | Merge rule | Fan-in safe? | Typical use |
+|---|---|---|---|
+| **Overwrite** (default, no reducer) | replace | n/a — errors on 2 writers | current question, resolved id, final answer, flags |
+| **Append** | `[...prev, ...next]` | ❌ order-dependent | doc lists, tool-call logs, visited-node traces |
+| **Additive** | `prev + next` | ✅ commutative | retry count, token spend, cost, loop counters |
+| **Merge / patch** | `{ ...prev, ...next }` | ⚠️ only if branches write different keys | multi-node form/config assembly |
+| **Keyed upsert** | replace-or-insert by id | ✅ (dedupes) | message history, id'd records |
+| **Set-union** | `[...new Set([...prev, ...next])]` | ✅ | distinct sources, tags, seen-ids |
+| **Bounded / sorted** | append then `.slice()` / `.sort()` | depends | sliding windows, ranked lists |
+
+`messagesStateReducer` (behind `MessagesAnnotation`) is the keyed-upsert pattern: dedupes by message `id`, replaces on re-emit, honours `RemoveMessage`. The split that matters: **overwrite vs. accumulate**, and within accumulate, **order-dependent** (append, patch-with-collisions) vs. **order-independent** (sum, set, keyed-upsert). Only accumulating channels need a reducer; only order-dependent ones are fragile under fan-in.
+
+## Supersteps, fan-out & fan-in
+
+LangGraph executes in **supersteps** (the Pregel model). One superstep = **run** every eligible node (in parallel if more than one) → **merge** their partial updates into state via each channel's reducer → **evaluate** edges to pick the next nodes → repeat until `END`.
+
+```
+superstep N:                      merge (fan-in)         superstep N+1
+  ┌─ nodeA → {docs:[...]} ─┐
+  │                        ├─► fold per channel ──► new state ──► edges pick next
+  └─ nodeB → {docs:[...]} ─┘      via reducers
+```
+
+- **Fan-out** = one step schedules several nodes for the next. Static (multiple `addEdge`s / a conditional edge returning an array) or dynamic (`Send[]` — one branch per item, each with isolated state; see [`Send` map-reduce](#send--map-reduce-fan-out-over-dynamic-list)).
+- **Fan-in** = those branches finish in the *same* superstep and their writes to a shared channel are folded together. A bare channel (`LastValue`, no reducer) **throws** here — "two writers, no merge rule." The reducer is what resolves it, which is why parallel graphs *need* reducers on any shared channel.
+- **Order is unspecified at fan-in.** The reducer folds the branch updates in no guaranteed order. Commutative reducers (sum, set, keyed-upsert) don't care; order-dependent ones (append) can flip between runs. It often *looks* stable in testing — that's the trap. Sort in the reducer, or give each branch its own channel and merge downstream in a defined order.
+- **Sequential ≠ parallel.** If nodeA runs, *then* nodeB in a later step, there's no fan-in and no ambiguity — this is purely a same-step concern.
 
 ## Conditional edges
 

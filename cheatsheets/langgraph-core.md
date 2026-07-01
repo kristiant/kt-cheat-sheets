@@ -201,6 +201,8 @@ Node B returns { messages: [msg2] }     ← same step, ran in parallel
   a LastValue channel would THROW here  (two writers in one step)
 ```
 
+**Fan-in fold order is unspecified.** When N nodes write one channel in the same superstep, Pregel folds their updates in no guaranteed order. Commutative reducers (sum, set-union, keyed-upsert) are order-independent; a plain append can flip between runs — sort in the reducer or carry an explicit index if order matters.
+
 State is never passed by reference — each step produces a **new immutable snapshot**. Checkpointing saves these snapshots, enabling time-travel and resumption.
 
 ---
