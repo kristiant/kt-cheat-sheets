@@ -93,6 +93,15 @@ const State = Annotation.Root({
 
 > `MessagesAnnotation` is a prebuilt state with exactly this messages reducer — use it for chat agents instead of redefining it.
 
+**Don't spell out the default reducer.** `reducer: (_prev, next) => next` *is* the built-in behaviour — these are identical:
+
+```ts
+tenantId: Annotation<string>(),                          // last-write-wins (default)
+tenantId: Annotation<string>({ reducer: (_p, n) => n }), // same thing, verbose
+```
+
+Only write a reducer when merge semantics differ from replace — append `(p, n) => [...p, ...n]`, sum `(p, n) => p + n`, shallow-merge `(p, n) => ({ ...p, ...n })`, or `messagesStateReducer` for id-aware message lists. `default: () => …` is the part that earns its keep on plain channels: it gives the key a starting value before any node writes it (otherwise it's `undefined`). Some codebases still write the identity reducer out on purpose — to document "this channel is replaced wholesale" and make the merge unit-testable — but that's a style choice, not a requirement.
+
 ## Conditional edges
 
 ```ts
